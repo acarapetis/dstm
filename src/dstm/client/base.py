@@ -18,7 +18,7 @@ class MessageClient(Protocol):
         """Publish a message to a topic."""
         ...
 
-    def listen(self, topic: str, **options) -> Generator[Message]:
+    def listen(self, topic: str) -> Generator[Message]:
         """Listen for messages on a topic. Blocks while listening, then yields message contents and repeats."""
         ...
 

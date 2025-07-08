@@ -58,7 +58,6 @@ class AMQPClient(MessageClient):
     def listen(
         self,
         topic: str,
-        **options,
     ) -> Generator[Message]:
         """Consume messages from a queue."""
         if not self.channel:

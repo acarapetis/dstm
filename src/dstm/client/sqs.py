@@ -1,3 +1,4 @@
+from dataclasses import dataclass
 import json
 import logging
 import typing
@@ -14,14 +15,13 @@ if typing.TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
+@dataclass
 class SQSClient(MessageClient):
     """SQS client using boto3."""
 
-    sqs: "mypy_boto3_sqs.client.SQSClient"
-
-    def __init__(self, client: "mypy_boto3_sqs.client.SQSClient"):
-        self.sqs = client
-        self._consuming = False
+    client: "mypy_boto3_sqs.client.SQSClient"
+    long_poll_time: int = 5
+    max_messages_per_request: int = 1
 
     def connect(self) -> None:
         pass  # No persistent connection required
@@ -32,14 +32,14 @@ class SQSClient(MessageClient):
     def _get_queue_url(self, queue_name: str) -> str:
         """Get or create queue URL."""
         try:
-            response = self.sqs.get_queue_url(QueueName=queue_name)
-        except self.sqs.exceptions.QueueDoesNotExist:
-            response = self.sqs.create_queue(QueueName=queue_name)
+            response = self.client.get_queue_url(QueueName=queue_name)
+        except self.client.exceptions.QueueDoesNotExist:
+            response = self.client.create_queue(QueueName=queue_name)
         return response["QueueUrl"]
 
     def publish(self, topic: str, message: Message) -> None:
         """Publish message to SQS queue."""
-        if not self.sqs:
+        if not self.client:
             raise ConnectionError("Not connected to SQS")
 
         try:
@@ -56,7 +56,7 @@ class SQSClient(MessageClient):
             }
 
             # Send message
-            self.sqs.send_message(
+            self.client.send_message(
                 QueueUrl=queue_url,
                 MessageBody=message_body,
                 MessageAttributes=message_attributes,
@@ -69,17 +69,14 @@ class SQSClient(MessageClient):
     def listen(
         self,
         topic: str,
-        wait_time: int = 5,
-        max_messages: int = 10,
-        **_options,
     ) -> typing.Generator[Message]:
         queue_url = self._get_queue_url(topic)
 
         while True:
-            response = self.sqs.receive_message(
+            response = self.client.receive_message(
                 QueueUrl=queue_url,
-                MaxNumberOfMessages=max_messages,
-                WaitTimeSeconds=wait_time,
+                MaxNumberOfMessages=self.max_messages_per_request,
+                WaitTimeSeconds=self.long_poll_time,
                 MessageAttributeNames=["All"],
             )
 
@@ -106,7 +103,7 @@ class SQSClient(MessageClient):
 
     def ack(self, message: Message):
         # Delete message from queue
-        self.sqs.delete_message(
+        self.client.delete_message(
             QueueUrl=message._id[0],
             ReceiptHandle=message._id[1],
         )
