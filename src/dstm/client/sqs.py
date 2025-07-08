@@ -3,7 +3,6 @@ import json
 import logging
 import typing
 
-from mypy_boto3_sqs.type_defs import MessageAttributeValueTypeDef
 
 from dstm.client.base import MessageClient
 from dstm.exceptions import PublishError
@@ -11,6 +10,7 @@ from dstm.message import Message
 
 if typing.TYPE_CHECKING:
     import mypy_boto3_sqs.client
+    from mypy_boto3_sqs.type_defs import MessageAttributeValueTypeDef
 
 logger = logging.getLogger(__name__)
 
