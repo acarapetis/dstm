@@ -16,6 +16,9 @@ amqp = [
 sqs = [
     "boto3>=1.39.3",
 ]
+cli = [
+    "typer-slim>=0.16.0",
+]
 
 [dependency-groups]
 dev = [
