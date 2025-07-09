@@ -17,6 +17,13 @@ sqs = [
     "boto3>=1.39.3",
 ]
 
+[dependency-groups]
+dev = [
+    "boto3-stubs[sqs]>=1.39.3",
+    "pytest>=8.4.1",
+    "pytest-xdist>=3.8.0",
+]
+
 [build-system]
 requires = ["uv_build>=0.7.19,<0.8.0"]
 build-backend = "uv_build"
@@ -34,9 +41,5 @@ filterwarnings = """
 """
 addopts = "--log-level INFO"
 
-[dependency-groups]
-dev = [
-    "boto3-stubs[sqs]>=1.39.3",
-    "pytest>=8.4.1",
-    "pytest-xdist>=3.8.0",
-]
+[tool.ruff.lint]
+select = ["I", "E"]
