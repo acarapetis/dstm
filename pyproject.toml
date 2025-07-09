@@ -38,4 +38,5 @@ addopts = "--log-level INFO"
 dev = [
     "boto3-stubs[sqs]>=1.39.3",
     "pytest>=8.4.1",
+    "pytest-xdist>=3.8.0",
 ]
