@@ -3,11 +3,15 @@ from pika import ConnectionParameters, PlainCredentials
 import pytest
 from random import choices
 from string import ascii_lowercase
+import logging
 import boto3
 
 from dstm.client.amqp import AMQPClient
 from dstm.client.sqs import SQSClient
 from dstm.client.base import MessageClient
+
+# pika does a LOT of info-level logging we don't care about.
+logging.getLogger("pika").setLevel(logging.WARNING)
 
 
 def make_sqs():

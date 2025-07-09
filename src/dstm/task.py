@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+import time
 from typing import Callable, Generic, ParamSpec, TypeVar, TypedDict
 from importlib import import_module
 from dstm.client.base import MessageClient
@@ -87,13 +88,19 @@ def run_worker(
 ):
     for index, message in enumerate(client.listen(topic, time_limit=time_limit)):
         try:
-            logger.warning(message.body)
+            t0 = time.perf_counter()
             run_task(message.body, wiring)
-            if task_limit is not None and index + 1 >= task_limit:
-                logger.info(f"Worker hit task limit of {task_limit}, terminating.")
-                break
+            runtime = time.perf_counter() - t0
         except Exception:
-            logger.exception(f"Error running task {message.body['task_name']}")
+            logger.exception(
+                f"Error running task {message.body['task_name']}, requeuing."
+            )
             client.requeue(message)
         else:
+            logger.info(
+                f"Task {message.body['task_name']} succeeded in {runtime:.1e} seconds."
+            )
             client.ack(message)
+        if task_limit is not None and index + 1 >= task_limit:
+            logger.info(f"Worker hit task limit of {task_limit}, terminating.")
+            break

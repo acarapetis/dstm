@@ -35,6 +35,7 @@ filterwarnings = """
     error
     ignore:.*utcnow.*:DeprecationWarning
 """
+addopts = "--log-level INFO"
 
 [dependency-groups]
 dev = [
