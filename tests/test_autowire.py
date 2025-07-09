@@ -1,8 +1,8 @@
 """Tests for high-level tasks defined using the @task decorator and autowired imports"""
 
 import sys
+from dstm.client.base import MessageClient
 from dstm.task import TaskBackend, autowire
-from tests.conftest import ClientFactory
 from multiprocessing import Process
 
 
@@ -14,18 +14,18 @@ def test_direct_call_of_decorated_task(capfd):
     assert out == "There are 2 rabbits and they're all called Peter\n"
 
 
-def test_autowired_worker(make_client: ClientFactory, capfd):
+def test_autowired_worker(client: MessageClient, capfd):
     # Another test might imported this in the same pytest process, so pop it if it's
     # there:
     sys.modules.pop("tests.autowire_test_package.tasks", None)
+    backend = TaskBackend("prod-", autowire, client)
+    backend.create_topics(["warren"])
 
     # Submit job in another process so that the module isn't imported yet in this one
     def submit_job():
         from tests.autowire_test_package.tasks import name_rabbits
 
-        with make_client() as c:
-            backend = TaskBackend("prod-", autowire, c)
-            name_rabbits.submit_to(backend, count=3)
+        name_rabbits.submit_to(backend, count=3)
 
     proc = Process(target=submit_job)
     proc.start()
@@ -33,8 +33,7 @@ def test_autowired_worker(make_client: ClientFactory, capfd):
 
     assert "tests.autowire_test_package.tasks" not in sys.modules
 
-    with make_client() as c:
-        TaskBackend("prod-", autowire, c).run_worker("warren", time_limit=0)
+    backend.run_worker("warren", time_limit=0)
 
     out, err = capfd.readouterr()
     assert out == "There are 3 rabbits and they're all called Peter\n"

@@ -2,7 +2,7 @@ import logging
 import time
 from dataclasses import dataclass
 from importlib import import_module
-from typing import Callable, Generic, ParamSpec, TypedDict, TypeVar
+from typing import Callable, Generic, Iterable, ParamSpec, TypedDict, TypeVar
 
 from dstm.client.base import MessageClient
 from dstm.message import Message
@@ -37,15 +37,32 @@ def submit_task(
     *args,
     **kwargs,
 ) -> None:
-    client.create_topic(topic)
-    msg: Message[TaskInstance] = Message(
-        {
-            "task_name": task_name,
-            "args": args,
-            "kwargs": kwargs,
-        }
-    )
-    client.publish(topic, msg)
+    with client:
+        msg: Message[TaskInstance] = Message(
+            {
+                "task_name": task_name,
+                "args": args,
+                "kwargs": kwargs,
+            }
+        )
+        client.publish(topic, msg)
+
+
+@dataclass
+class TaskWrapper(Generic[P, R]):
+    """Function wrapper that attaches the necessary metadata to make it a task, and a
+    convenience method to submit an instance of this task."""
+
+    func: Callable[P, R]
+    task_group: str
+    task_name: str
+
+    def __call__(self, *args: P.args, **kwargs: P.kwargs) -> R:
+        return self.func(*args, **kwargs)
+
+    def submit_to(self, backend: "TaskBackend", /, *args: P.args, **kwargs: P.kwargs):
+        """Alternative phrasing of backend.submit(self, ...)."""
+        backend.submit(self, *args, **kwargs)
 
 
 @dataclass
@@ -68,22 +85,16 @@ class TaskBackend:
             task_limit=task_limit,
         )
 
+    def create_topics(self, task_groups: Iterable[str] | str):
+        if isinstance(task_groups, str):
+            task_groups = [task_groups]
+        with self.client:
+            for g in task_groups:
+                self.client.create_topic(self.topic_prefix + g)
 
-@dataclass
-class TaskWrapper(Generic[P, R]):
-    """Function wrapper that attaches the necessary metadata to make it a task, and a
-    convenience method to submit an instance of this task."""
-
-    func: Callable[P, R]
-    task_group: str
-    task_name: str
-
-    def __call__(self, *args: P.args, **kwargs: P.kwargs) -> R:
-        return self.func(*args, **kwargs)
-
-    def submit_to(self, backend: TaskBackend, /, *args: P.args, **kwargs: P.kwargs):
-        topic = backend.topic_prefix + self.task_group
-        submit_task(topic, self.task_name, backend.client, *args, **kwargs)
+    def submit(self, task: TaskWrapper[P, R], /, *args: P.args, **kwargs: P.kwargs):
+        topic = self.topic_prefix + task.task_group
+        submit_task(topic, task.task_name, self.client, *args, **kwargs)
 
 
 def task(topic: str, task_name: str | None = None):
@@ -109,21 +120,22 @@ def run_worker(
     time_limit: int | None = None,
     task_limit: int | None = None,
 ):
-    for index, message in enumerate(client.listen(topic, time_limit=time_limit)):
-        try:
-            t0 = time.perf_counter()
-            run_task(message.body, wiring)
-            runtime = time.perf_counter() - t0
-        except Exception:
-            logger.exception(
-                f"Error running task {message.body['task_name']}, requeuing."
-            )
-            client.requeue(message)
-        else:
-            logger.info(
-                f"Task {message.body['task_name']} succeeded in {runtime:.1e} seconds."
-            )
-            client.ack(message)
-        if task_limit is not None and index + 1 >= task_limit:
-            logger.info(f"Worker hit task limit of {task_limit}, terminating.")
-            break
+    with client:
+        for index, message in enumerate(client.listen(topic, time_limit=time_limit)):
+            try:
+                t0 = time.perf_counter()
+                run_task(message.body, wiring)
+                runtime = time.perf_counter() - t0
+            except Exception:
+                logger.exception(
+                    f"Error running task {message.body['task_name']}, requeuing."
+                )
+                client.requeue(message)
+            else:
+                logger.info(
+                    f"Task {message.body['task_name']} succeeded in {runtime:.1e} seconds."
+                )
+                client.ack(message)
+            if task_limit is not None and index + 1 >= task_limit:
+                logger.info(f"Worker hit task limit of {task_limit}, terminating.")
+                break

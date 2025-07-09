@@ -1,7 +1,8 @@
-"""Tests for low-level (i.e. "hardwired") task functions"""
+"""Tests for low-level task functions with hardwired name->implementation mappings and
+explicit topics"""
 
+from dstm.client.base import MessageClient
 from dstm.task import TaskWiring, run_worker, submit_task
-from tests.conftest import ClientFactory
 
 
 outputs = []
@@ -15,11 +16,9 @@ def simple_task(name: str, count: int):
 wiring: TaskWiring = {"simple_task": simple_task}.__getitem__
 
 
-def test_simple_task(topic: str, make_client: ClientFactory):
-    with make_client() as c:
-        submit_task(topic, "simple_task", c, "steve", 3)
+def test_simple_task(topic: str, client: MessageClient):
+    submit_task(topic, "simple_task", client, "steve", 3)
 
     outputs.clear()
-    with make_client() as c:
-        run_worker(c, topic, wiring, time_limit=0)
+    run_worker(client, topic, wiring, time_limit=0)
     assert outputs == ["hi steve"] * 3

@@ -19,6 +19,12 @@ class AMQPClient(MessageClient):
         self.channel = None
 
     def connect(self) -> None:
+        if self.connection and not self.connection.is_closed:
+            warnings.warn(
+                "AMQPClient.connect() called before previous connection was closed. "
+                "Closing it automatically, but something seems wrong."
+            )
+            self.disconnect()
         try:
             self.connection = pika.BlockingConnection(self.parameters)
             self.channel = self.connection.channel()

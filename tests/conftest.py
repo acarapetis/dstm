@@ -1,4 +1,3 @@
-from typing import Callable
 from pika import ConnectionParameters, PlainCredentials
 import pytest
 from random import choices
@@ -8,7 +7,6 @@ import boto3
 
 from dstm.client.amqp import AMQPClient
 from dstm.client.sqs import SQSClient
-from dstm.client.base import MessageClient
 
 # pika does a LOT of info-level logging we don't care about.
 logging.getLogger("pika").setLevel(logging.WARNING)
@@ -36,18 +34,13 @@ def make_amqp():
 
 
 @pytest.fixture(params=["sqs", "amqp"])
-def make_client(request):
-    return {"sqs": make_sqs, "amqp": make_amqp}[request.param]
-
-
-ClientFactory = Callable[[], MessageClient]
+def client(request):
+    return {"sqs": make_sqs(), "amqp": make_amqp()}[request.param]
 
 
 @pytest.fixture()
-def topic(make_client: ClientFactory):
+def topic(client: SQSClient):
     t = "".join(choices(ascii_lowercase, k=10))
-    c = make_client()
-    c.connect()
-    c.create_topic(t)
-    c.disconnect()
+    with client:
+        client.create_topic(t)
     return t
