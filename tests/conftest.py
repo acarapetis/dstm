@@ -1,10 +1,11 @@
-from typing import Callable
-from pika import ConnectionParameters, PlainCredentials
-import pytest
+import logging
 from random import choices
 from string import ascii_lowercase
-import logging
+from typing import Callable
+
 import boto3
+import pytest
+from pika import ConnectionParameters, PlainCredentials
 
 from dstm.client.amqp import AMQPClient
 from dstm.client.base import MessageClient

@@ -116,7 +116,8 @@ class SQSClient(MessageClient):
                 if delta <= 0:
                     if first:
                         logger.debug(
-                            f"{topics=}, {time_limit=}; {delta=} but this is the first loop, setting delta = 0"
+                            f"{topics=}, {time_limit=}; {delta=} but this is "
+                            "the first loop, setting delta = 0"
                         )
                         delta = 0
                     else:

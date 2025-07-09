@@ -1,5 +1,7 @@
-import pytest
 import time
+
+import pytest
+
 from dstm.client.base import MessageClient
 from dstm.message import Message
 from tests.conftest import TopicFactory

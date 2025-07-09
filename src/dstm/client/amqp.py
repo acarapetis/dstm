@@ -6,7 +6,7 @@ from typing import Generator, Iterable
 
 import pika
 import pika.connection
-from pika.adapters.blocking_connection import BlockingConnection, BlockingChannel
+from pika.adapters.blocking_connection import BlockingChannel, BlockingConnection
 
 from dstm.client.base import MessageClient
 from dstm.exceptions import PublishError

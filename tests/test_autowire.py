@@ -1,8 +1,9 @@
 """Tests for high-level tasks defined using the @task decorator and autowired imports"""
 
+import sys
 from random import choices
 from string import ascii_lowercase
-import sys
+
 from dstm.client.base import MessageClient
 from dstm.tasks.backend import TaskBackend
 

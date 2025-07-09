@@ -34,7 +34,7 @@ def run_worker(
             try:
                 t0 = time.perf_counter()
                 run_task(message.body, wiring)
-                runtime = time.perf_counter() - t0
+                dt = time.perf_counter() - t0
             except Exception:
                 logger.exception(
                     f"Error running task {message.body['task_name']}, requeuing."
@@ -42,7 +42,7 @@ def run_worker(
                 client.requeue(message)
             else:
                 logger.info(
-                    f"Task {message.body['task_name']} succeeded in {runtime:.1e} seconds."
+                    f"Task {message.body['task_name']} succeeded in {dt:.1e} seconds."
                 )
                 client.ack(message)
             if task_limit is not None and index + 1 >= task_limit:
