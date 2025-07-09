@@ -24,6 +24,9 @@ class SQSClient(MessageClient):
     max_messages_per_request: int = 1
     visibility_timeout_for_new_queues: int = 30
 
+    def __repr__(self):
+        return "SQSClient"
+
     def connect(self) -> None:
         pass  # No persistent connection required
 

@@ -5,6 +5,7 @@ import warnings
 from typing import Generator, Iterable
 
 import pika
+import pika.connection
 from pika.adapters.blocking_connection import BlockingConnection, BlockingChannel
 
 from dstm.client.base import MessageClient
@@ -17,10 +18,13 @@ logger = logging.getLogger(__name__)
 class AMQPClient(MessageClient):
     """AMQP client using pika."""
 
-    def __init__(self, parameters: pika.ConnectionParameters):
+    def __init__(self, parameters: pika.connection.Parameters):
         self.parameters = parameters
         self.connection = None
         self.channel = None
+
+    def __repr__(self):
+        return f"AMQPClient({self.parameters.host})"
 
     def connect(self) -> None:
         if self.connection and not self.connection.is_closed:

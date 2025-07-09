@@ -74,13 +74,15 @@ class TaskBackend:
 
     def run_worker(
         self,
-        task_group: str,
+        task_groups: Iterable[str] | str,
         time_limit: int | None = None,
         task_limit: int | None = None,
     ):
+        if isinstance(task_groups, str):
+            task_groups = [task_groups]
         run_worker(
             client=self.client,
-            topic=self.topic_prefix + task_group,
+            topics=[self.topic_prefix + g for g in task_groups],
             wiring=self.wiring,
             time_limit=time_limit,
             task_limit=task_limit,
@@ -116,13 +118,14 @@ def run_task(instance: TaskInstance, wiring: TaskWiring):
 
 def run_worker(
     client: MessageClient,
-    topic: str,
+    topics: list[str],
     wiring: TaskWiring,
     time_limit: int | None = None,
     task_limit: int | None = None,
 ):
     with client:
-        for index, message in enumerate(client.listen(topic, time_limit=time_limit)):
+        logger.info(f"Worker started using {client!r}, watching topics {topics}")
+        for index, message in enumerate(client.listen(topics, time_limit=time_limit)):
             try:
                 t0 = time.perf_counter()
                 run_task(message.body, wiring)
