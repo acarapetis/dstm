@@ -90,3 +90,8 @@ class AMQPClient(MessageClient):
         if not self.channel:
             raise ConnectionError("Not connected to AMQP broker")
         self.channel.basic_ack(delivery_tag=message._id)
+
+    def requeue(self, message: Message) -> None:
+        if not self.channel:
+            raise ConnectionError("Not connected to AMQP broker")
+        self.channel.basic_nack(delivery_tag=message._id, requeue=True)

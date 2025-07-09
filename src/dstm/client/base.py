@@ -1,10 +1,17 @@
-from typing import Generator, Protocol, ContextManager
+from typing import Generator, Protocol, TypeVar
 
 from dstm.message import Message
 
 
-class MessageClient(ContextManager, Protocol):
+Self = TypeVar("Self", bound="MessageClient")
+
+
+class MessageClient(Protocol):
     """Abstract base class for messaging clients."""
+
+    def __enter__(self: Self) -> Self: ...
+
+    def __exit__(self, type_, value, tb): ...
 
     def connect(self) -> None:
         """Establish connection to the messaging system."""
@@ -24,6 +31,10 @@ class MessageClient(ContextManager, Protocol):
 
     def ack(self, message: Message) -> None:
         """Acknowledge that a message has been handled successfully."""
+        ...
+
+    def requeue(self, message: Message) -> None:
+        """Tell the broker that a message should be requeued."""
         ...
 
     def create_topic(self, topic: str) -> None:

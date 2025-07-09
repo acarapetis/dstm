@@ -23,6 +23,7 @@ class SQSClient(MessageClient):
     client: "mypy_boto3_sqs.client.SQSClient"
     long_poll_time: int = 5
     max_messages_per_request: int = 1
+    visibility_timeout_for_new_queues: int = 30
 
     def connect(self) -> None:
         pass  # No persistent connection required
@@ -74,6 +75,12 @@ class SQSClient(MessageClient):
 
     def create_topic(self, topic: str) -> None:
         self.client.create_queue(QueueName=topic)
+        self.client.set_queue_attributes(
+            QueueUrl=self._get_queue_url(topic),
+            Attributes={
+                "VisibilityTimeout": str(self.visibility_timeout_for_new_queues)
+            },
+        )
 
     def listen(
         self,
@@ -119,8 +126,14 @@ class SQSClient(MessageClient):
                 break
 
     def ack(self, message: Message):
-        # Delete message from queue
         self.client.delete_message(
             QueueUrl=message._id[0],
             ReceiptHandle=message._id[1],
+        )
+
+    def requeue(self, message: Message) -> None:
+        self.client.change_message_visibility(
+            QueueUrl=message._id[0],
+            ReceiptHandle=message._id[1],
+            VisibilityTimeout=0,
         )
