@@ -94,5 +94,6 @@ def run_worker(
                 break
         except Exception:
             logger.exception(f"Error running task {message.body['task_name']}")
+            client.requeue(message)
         else:
             client.ack(message)
