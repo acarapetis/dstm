@@ -19,7 +19,6 @@ class AMQPClient(MessageClient):
         self.channel = None
 
     def connect(self) -> None:
-        """Connect to RabbitMQ."""
         try:
             self.connection = pika.BlockingConnection(self.parameters)
             self.channel = self.connection.channel()
@@ -28,19 +27,20 @@ class AMQPClient(MessageClient):
             raise ConnectionError(f"Failed to connect to AMQP: {e}") from e
 
     def disconnect(self) -> None:
-        """Disconnect from RabbitMQ."""
         if self.connection and not self.connection.is_closed:
             self.connection.close()
             logger.debug("Disconnected from AMQP broker {self.parameters}")
 
+    def create_topic(self, topic: str) -> None:
+        if not self.channel:
+            raise ConnectionError("Not connected to AMQP broker")
+        self.channel.queue_declare(queue=topic, durable=True)
+
     def publish(self, topic: str, message: Message) -> None:
-        """Publish message to a queue."""
         if not self.channel:
             raise ConnectionError("Not connected to AMQP broker")
 
         try:
-            self.channel.queue_declare(queue=topic, durable=True)
-
             body = json.dumps(message.body)
             properties = pika.BasicProperties(
                 headers=message.headers,
@@ -58,14 +58,16 @@ class AMQPClient(MessageClient):
     def listen(
         self,
         topic: str,
+        time_limit: int | None = None,
     ) -> Generator[Message]:
-        """Consume messages from a queue."""
         if not self.channel:
             raise ConnectionError("Not connected to AMQP broker")
 
-        self.channel.queue_declare(queue=topic, durable=True)
-
-        for method_frame, properties, body in self.channel.consume(queue=topic):
+        for method_frame, properties, body in self.channel.consume(
+            queue=topic, inactivity_timeout=time_limit
+        ):
+            if method_frame is None:  # hit time limit
+                break
             try:
                 message = Message(
                     body=json.loads(body.decode("utf-8")),

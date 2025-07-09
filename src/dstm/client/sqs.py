@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+import time
 import json
 import logging
 import typing
@@ -30,7 +31,6 @@ class SQSClient(MessageClient):
         pass  # No persistent connection required
 
     def _get_queue_url(self, queue_name: str) -> str:
-        """Get or create queue URL."""
         try:
             response = self.client.get_queue_url(QueueName=queue_name)
         except self.client.exceptions.QueueDoesNotExist:
@@ -66,17 +66,25 @@ class SQSClient(MessageClient):
         except Exception as e:
             raise PublishError(f"Failed to publish message: {e}") from e
 
+    def create_topic(self, topic: str) -> None:
+        self.client.create_queue(QueueName=topic)
+
     def listen(
         self,
         topic: str,
+        time_limit: int | None = None,
     ) -> typing.Generator[Message]:
+        t0 = time.monotonic()
         queue_url = self._get_queue_url(topic)
+        wait_time = self.long_poll_time
+        if time_limit is not None and time_limit < wait_time:
+            wait_time = time_limit
 
         while True:
             response = self.client.receive_message(
                 QueueUrl=queue_url,
                 MaxNumberOfMessages=self.max_messages_per_request,
-                WaitTimeSeconds=self.long_poll_time,
+                WaitTimeSeconds=wait_time,
                 MessageAttributeNames=["All"],
             )
 
@@ -100,6 +108,9 @@ class SQSClient(MessageClient):
                     logger.exception(f"Error parsing SQS message: {e}")
                 else:
                     yield message
+
+            if time_limit is not None and time.monotonic() > t0 + time_limit:
+                break
 
     def ack(self, message: Message):
         # Delete message from queue

@@ -18,10 +18,14 @@ class MessageClient(Protocol):
         """Publish a message to a topic."""
         ...
 
-    def listen(self, topic: str) -> Generator[Message]:
+    def listen(self, topic: str, time_limit: int | None = None) -> Generator[Message]:
         """Listen for messages on a topic. Blocks while listening, then yields message contents and repeats."""
         ...
 
     def ack(self, message: Message) -> None:
         """Acknowledge that a message has been handled successfully."""
+        ...
+
+    def create_topic(self, topic: str) -> None:
+        """Create a topic if it does not already exist."""
         ...
