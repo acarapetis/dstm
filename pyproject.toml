@@ -42,4 +42,4 @@ filterwarnings = """
 addopts = "--log-level INFO"
 
 [tool.ruff.lint]
-select = ["I", "E"]
+select = ["I", "E", "W", "F", "RUF", "FURB"]

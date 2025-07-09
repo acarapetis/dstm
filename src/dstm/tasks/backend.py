@@ -1,6 +1,6 @@
 import logging
-from dataclasses import dataclass
-from typing import Any, Iterable, ParamSpec, TypeVar
+from dataclasses import dataclass, field
+from typing import Any, Iterable, ParamSpec
 
 from dstm.client.base import MessageClient
 from dstm.message import Message
@@ -39,7 +39,7 @@ P = ParamSpec("P")
 class TaskBackend:
     client: MessageClient
     topic_prefix: str = ""
-    wiring: TaskWiring = AutoWiring()
+    wiring: TaskWiring = field(default_factory=AutoWiring)
 
     def run_worker(
         self,
