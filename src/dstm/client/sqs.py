@@ -30,6 +30,12 @@ class SQSClient(MessageClient):
     def disconnect(self) -> None:
         pass  # No persistent connection required
 
+    def __enter__(self):
+        return self
+
+    def __exit__(self, type_, value, tb):
+        pass
+
     def _get_queue_url(self, queue_name: str) -> str:
         try:
             response = self.client.get_queue_url(QueueName=queue_name)

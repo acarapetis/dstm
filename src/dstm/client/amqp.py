@@ -31,6 +31,13 @@ class AMQPClient(MessageClient):
             self.connection.close()
             logger.debug("Disconnected from AMQP broker {self.parameters}")
 
+    def __enter__(self):
+        self.connect()
+        return self
+
+    def __exit__(self, type_, value, tb):
+        self.disconnect()
+
     def create_topic(self, topic: str) -> None:
         if not self.channel:
             raise ConnectionError("Not connected to AMQP broker")

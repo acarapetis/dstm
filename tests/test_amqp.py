@@ -1,22 +1,7 @@
-from pika import ConnectionParameters, PlainCredentials
-from random import choices
-from string import ascii_lowercase
-
-from dstm.client.amqp import AMQPClient
 from dstm.message import Message
 
 
-def make_client():
-    return AMQPClient(
-        ConnectionParameters(
-            "localhost", credentials=PlainCredentials("rabbit", "carrot")
-        )
-    )
-
-
-def test_send_receive():
-    topic = "".join(choices(ascii_lowercase, k=10))
-
+def test_send_receive(topic: str, make_client):
     c = make_client()
     c.connect()
     c.publish(topic, Message({"hello": "world"}))
@@ -35,9 +20,7 @@ def test_send_receive():
     #     assert pool.submit(receive).result(timeout=0.5).body == {"hello": "world"}
 
 
-def test_acking():
-    topic = "".join(choices(ascii_lowercase, k=10))
-
+def test_acking(topic, make_client):
     c = make_client()
     c.connect()
     c.publish(topic, Message({"hello": "world"}))

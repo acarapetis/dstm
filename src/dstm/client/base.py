@@ -1,9 +1,9 @@
-from typing import Generator, Protocol
+from typing import Generator, Protocol, ContextManager
 
 from dstm.message import Message
 
 
-class MessageClient(Protocol):
+class MessageClient(ContextManager, Protocol):
     """Abstract base class for messaging clients."""
 
     def connect(self) -> None:
