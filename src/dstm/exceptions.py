@@ -12,3 +12,7 @@ class PublishError(Error):
 
 class ConsumeError(Error):
     """Exception raised when message consumption fails."""
+
+
+class WiringError(Error):
+    """Incorrect wiring of task names <-> task implementations"""

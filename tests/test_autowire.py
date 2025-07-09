@@ -1,9 +1,10 @@
 """Tests for high-level tasks defined using the @task decorator and autowired imports"""
 
+from random import choices
+from string import ascii_lowercase
 import sys
 from dstm.client.base import MessageClient
-from dstm.task import TaskBackend, autowire
-from multiprocessing import Process
+from dstm.tasks.backend import TaskBackend
 
 
 def test_direct_call_of_decorated_task(capfd):
@@ -15,22 +16,18 @@ def test_direct_call_of_decorated_task(capfd):
 
 
 def test_autowired_worker(client: MessageClient, capfd):
-    # Another test might imported this in the same pytest process, so pop it if it's
-    # there:
-    sys.modules.pop("tests.autowire_test_package.tasks", None)
-    backend = TaskBackend("prod-", autowire, client)
+    prefix = "".join(choices(ascii_lowercase, k=10))
+    backend = TaskBackend(client, prefix)
+    backend.destroy_topics(["warren"])
     backend.create_topics(["warren"])
 
-    # Submit job in another process so that the module isn't imported yet in this one
-    def submit_job():
-        from tests.autowire_test_package.tasks import name_rabbits
+    from tests.autowire_test_package.tasks import name_rabbits
 
-        name_rabbits.submit_to(backend, count=3)
+    name_rabbits.submit_to(backend, count=3)
 
-    proc = Process(target=submit_job)
-    proc.start()
-    proc.join()
-
+    # We had to import this to submit the task, let's pop it out of sys.modules to
+    # check it's reimported again by the autowiring
+    sys.modules.pop("tests.autowire_test_package.tasks", None)
     assert "tests.autowire_test_package.tasks" not in sys.modules
 
     backend.run_worker("warren", time_limit=0)
@@ -38,5 +35,6 @@ def test_autowired_worker(client: MessageClient, capfd):
     out, err = capfd.readouterr()
     assert out == "There are 3 rabbits and they're all called Peter\n"
 
-    # The worker have dynamically imported the module based on the task message
+    # The worker should have dynamically imported the module based on the task message
     assert "tests.autowire_test_package.tasks" in sys.modules
+    backend.destroy_topics(["warren"])

@@ -19,7 +19,7 @@ def test_timeout(topic, client: MessageClient):
     with client:
         t0 = time.monotonic()
         with pytest.raises(StopIteration):
-            msg = next(client.listen(topic, time_limit=1))
+            next(client.listen(topic, time_limit=1))
         t1 = time.monotonic()
 
         assert 0.9 < t1 - t0 < 1.1
