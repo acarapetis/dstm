@@ -29,6 +29,13 @@ pythonVersion = "3.10"
 venvPath = "."
 venv = ".venv"
 
+[tool.pytest.ini_options]
+# boto3 still hasn't moved off utcnow, ignore those deprecation warnings
+filterwarnings = """
+    error
+    ignore:.*utcnow.*:DeprecationWarning
+"""
+
 [dependency-groups]
 dev = [
     "boto3-stubs[sqs]>=1.39.3",
