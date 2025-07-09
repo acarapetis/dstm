@@ -2,7 +2,6 @@ from typing import Generator, Protocol, TypeVar
 
 from dstm.message import Message
 
-
 Self = TypeVar("Self", bound="MessageClient")
 
 

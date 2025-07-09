@@ -1,10 +1,11 @@
-from dataclasses import dataclass
+import logging
 import time
-from typing import Callable, Generic, ParamSpec, TypeVar, TypedDict
+from dataclasses import dataclass
 from importlib import import_module
+from typing import Callable, Generic, ParamSpec, TypedDict, TypeVar
+
 from dstm.client.base import MessageClient
 from dstm.message import Message
-import logging
 
 logger = logging.getLogger(__name__)
 

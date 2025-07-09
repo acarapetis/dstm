@@ -1,9 +1,8 @@
-from dataclasses import dataclass
-import time
 import json
 import logging
+import time
 import typing
-
+from dataclasses import dataclass
 
 from dstm.client.base import MessageClient
 from dstm.exceptions import PublishError
