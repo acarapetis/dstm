@@ -1,4 +1,4 @@
-from typing import Generator, Protocol, TypeVar
+from typing import Generator, Iterable, Protocol, TypeVar
 
 from dstm.message import Message
 
@@ -20,12 +20,15 @@ class MessageClient(Protocol):
         """Close connection to the messaging system."""
         ...
 
-    def publish(self, topic: str, message: Message) -> None:
+    def publish(self, message: Message) -> None:
         """Publish a message to a topic."""
         ...
 
-    def listen(self, topic: str, time_limit: int | None = None) -> Generator[Message]:
-        """Listen for messages on a topic. Blocks while listening, then yields message contents and repeats."""
+    def listen(
+        self, topics: Iterable[str] | str, time_limit: int | None = None
+    ) -> Generator[Message]:
+        """Listen for messages on one or more topics. Blocks while listening, then
+        yields message contents and repeats."""
         ...
 
     def ack(self, message: Message) -> None:
@@ -38,4 +41,8 @@ class MessageClient(Protocol):
 
     def create_topic(self, topic: str) -> None:
         """Create a topic if it does not already exist."""
+        ...
+
+    def destroy_topic(self, topic: str) -> None:
+        """Delete an existing topic."""
         ...

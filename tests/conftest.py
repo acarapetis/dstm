@@ -1,3 +1,4 @@
+from typing import Callable
 from pika import ConnectionParameters, PlainCredentials
 import pytest
 from random import choices
@@ -6,6 +7,7 @@ import logging
 import boto3
 
 from dstm.client.amqp import AMQPClient
+from dstm.client.base import MessageClient
 from dstm.client.sqs import SQSClient
 
 # pika does a LOT of info-level logging we don't care about.
@@ -39,8 +41,25 @@ def client(request):
 
 
 @pytest.fixture()
-def topic(client: SQSClient):
+def topic(client: MessageClient):
+    yield from _test_topic(client)
+
+
+TopicFactory = Callable[[], str]
+
+
+@pytest.fixture()
+def topic_factory(client: MessageClient) -> TopicFactory:
+    def factory():
+        return next(_test_topic(client))
+
+    return factory
+
+
+def _test_topic(client: MessageClient):
     t = "".join(choices(ascii_lowercase, k=10))
     with client:
         client.create_topic(t)
-    return t
+    yield t
+    with client:
+        client.destroy_topic(t)

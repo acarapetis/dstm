@@ -1,14 +1,14 @@
 import json
 import logging
 import time
-import typing
 from dataclasses import dataclass
+from typing import TYPE_CHECKING, Generator, Iterable
 
 from dstm.client.base import MessageClient
 from dstm.exceptions import PublishError
 from dstm.message import Message
 
-if typing.TYPE_CHECKING:
+if TYPE_CHECKING:
     import mypy_boto3_sqs.client
     from mypy_boto3_sqs.type_defs import MessageAttributeValueTypeDef
 
@@ -43,13 +43,13 @@ class SQSClient(MessageClient):
             response = self.client.create_queue(QueueName=queue_name)
         return response["QueueUrl"]
 
-    def publish(self, topic: str, message: Message) -> None:
+    def publish(self, message: Message) -> None:
         """Publish message to SQS queue."""
         if not self.client:
             raise ConnectionError("Not connected to SQS")
 
         try:
-            queue_url = self._get_queue_url(topic)
+            queue_url = self._get_queue_url(message.topic)
 
             # Prepare message
             message_body = json.dumps(message.body)
@@ -68,12 +68,15 @@ class SQSClient(MessageClient):
                 MessageAttributes=message_attributes,
             )
 
-            logger.debug(f"Published message to SQS queue: {topic}")
+            logger.debug(f"Published message to SQS queue: {message.topic}")
         except Exception as e:
             raise PublishError(f"Failed to publish message: {e}") from e
 
     def create_topic(self, topic: str) -> None:
         self.client.create_queue(QueueName=topic)
+        logger.debug(
+            f"Setting VisibilityTimeout={self.visibility_timeout_for_new_queues}"
+        )
         self.client.set_queue_attributes(
             QueueUrl=self._get_queue_url(topic),
             Attributes={
@@ -81,48 +84,84 @@ class SQSClient(MessageClient):
             },
         )
 
+    def destroy_topic(self, topic: str) -> None:
+        self.client.delete_queue(QueueUrl=self._get_queue_url(topic))
+
     def listen(
-        self,
-        topic: str,
-        time_limit: int | None = None,
-    ) -> typing.Generator[Message]:
-        t0 = time.monotonic()
-        queue_url = self._get_queue_url(topic)
-        wait_time = self.long_poll_time
-        if time_limit is not None and time_limit < wait_time:
-            wait_time = time_limit
+        self, topics: Iterable[str] | str, time_limit: int | None = None
+    ) -> Generator[Message]:
+        if not topics:
+            return
 
+        if isinstance(topics, str):
+            topics = [topics]
+        else:
+            topics = list(topics)
+
+        # Don't use long polling if we have multiple queues to check
+        wait_time = self.long_poll_time if len(topics) == 1 else 0
+
+        if time_limit is not None:
+            end_time = time.monotonic() + time_limit
+        else:
+            end_time = None
+
+        first = True
         while True:
-            response = self.client.receive_message(
-                QueueUrl=queue_url,
-                MaxNumberOfMessages=self.max_messages_per_request,
-                WaitTimeSeconds=wait_time,
-                MessageAttributeNames=["All"],
-            )
-
-            messages = response.get("Messages", [])
-
-            for sqs_message in messages:
-                try:
-                    attrs = sqs_message.get("MessageAttributes", {})
-                    assert "Body" in sqs_message
-                    assert "ReceiptHandle" in sqs_message
-                    message = Message(
-                        body=json.loads(sqs_message["Body"]),
-                        headers={
-                            k: v["StringValue"]
-                            for k, v in attrs.items()
-                            if "StringValue" in v
-                        },
-                        _id=(queue_url, sqs_message["ReceiptHandle"]),
-                    )
-                except Exception as e:
-                    logger.exception(f"Error parsing SQS message: {e}")
+            if end_time is not None:
+                delta = end_time - time.monotonic()
+                if delta <= 0:
+                    if first:
+                        logger.debug(
+                            f"{topics=}, {time_limit=}; {delta=} but this is the first loop, setting delta = 0"
+                        )
+                        delta = 0
+                    else:
+                        logger.debug(f"{topics=}, {time_limit=}; {delta=}, breaking")
+                        break
                 else:
-                    yield message
+                    logger.debug(f"{topics=}, {time_limit=}; {delta=}")
+                if wait_time > delta:
+                    wait_time = delta
+            logger.debug(f"{topics=}, {time_limit=}; continuing with {int(wait_time)=}")
+            first = False
 
-            if time_limit is not None and time.monotonic() > t0 + time_limit:
-                break
+            for topic in topics:
+                queue_url = self._get_queue_url(topic)
+                response = self.client.receive_message(
+                    QueueUrl=queue_url,
+                    MaxNumberOfMessages=self.max_messages_per_request,
+                    WaitTimeSeconds=int(wait_time),
+                    MessageAttributeNames=["All"],
+                )
+
+                messages = response.get("Messages", [])
+                response["ResponseMetadata"]
+
+                for sqs_message in messages:
+                    try:
+                        attrs = sqs_message.get("MessageAttributes", {})
+                        assert "Body" in sqs_message
+                        assert "ReceiptHandle" in sqs_message
+                        message = Message(
+                            topic=topic,
+                            body=json.loads(sqs_message["Body"]),
+                            headers={
+                                k: v["StringValue"]
+                                for k, v in attrs.items()
+                                if "StringValue" in v
+                            },
+                            _id=(queue_url, sqs_message["ReceiptHandle"]),
+                        )
+                    except Exception as e:
+                        logger.exception(f"Error parsing SQS message: {e}")
+                    else:
+                        yield message
+
+            if len(topics) > 1:
+                # When watching multiple topics we don't use long-polling, so we need to
+                # manually sleep to avoid hammering the API
+                time.sleep(1)
 
     def ack(self, message: Message):
         self.client.delete_message(

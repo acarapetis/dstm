@@ -39,13 +39,14 @@ def submit_task(
 ) -> None:
     with client:
         msg: Message[TaskInstance] = Message(
+            topic,
             {
                 "task_name": task_name,
                 "args": args,
                 "kwargs": kwargs,
-            }
+            },
         )
-        client.publish(topic, msg)
+        client.publish(msg)
 
 
 @dataclass

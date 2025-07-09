@@ -1,7 +1,11 @@
 import json
 import logging
-from typing import Generator
+import time
+import warnings
+from typing import Generator, Iterable
+
 import pika
+from pika.adapters.blocking_connection import BlockingConnection, BlockingChannel
 
 from dstm.client.base import MessageClient
 from dstm.exceptions import PublishError
@@ -44,14 +48,26 @@ class AMQPClient(MessageClient):
     def __exit__(self, type_, value, tb):
         self.disconnect()
 
-    def create_topic(self, topic: str) -> None:
-        if not self.channel:
+    def _assert_connected(self) -> tuple[BlockingConnection, BlockingChannel]:
+        if (
+            not self.connection
+            or self.connection.is_closed
+            or not self.channel
+            or self.channel.is_closed
+        ):
             raise ConnectionError("Not connected to AMQP broker")
-        self.channel.queue_declare(queue=topic, durable=True)
+        return self.connection, self.channel
 
-    def publish(self, topic: str, message: Message) -> None:
-        if not self.channel:
-            raise ConnectionError("Not connected to AMQP broker")
+    def create_topic(self, topic: str) -> None:
+        connection, channel = self._assert_connected()
+        channel.queue_declare(queue=topic, durable=True)
+
+    def destroy_topic(self, topic: str) -> None:
+        connection, channel = self._assert_connected()
+        channel.queue_delete(queue=topic)
+
+    def publish(self, message: Message) -> None:
+        connection, channel = self._assert_connected()
 
         try:
             body = json.dumps(message.body)
@@ -60,44 +76,77 @@ class AMQPClient(MessageClient):
                 delivery_mode=2,  # Make message persistent
             )
 
-            self.channel.basic_publish(
-                exchange="", routing_key=topic, body=body, properties=properties
+            channel.basic_publish(
+                exchange="", routing_key=message.topic, body=body, properties=properties
             )
 
-            logger.debug(f"Published message to queue: {topic}")
+            logger.debug(f"Published message to queue: {message.topic}")
         except Exception as e:
             raise PublishError(f"Failed to publish message: {e}") from e
 
     def listen(
         self,
-        topic: str,
-        time_limit: int | None = None,
+        topics: Iterable[str] | str,
+        time_limit: float | None = None,
     ) -> Generator[Message]:
-        if not self.channel:
-            raise ConnectionError("Not connected to AMQP broker")
+        connection, channel = self._assert_connected()
 
-        for method_frame, properties, body in self.channel.consume(
-            queue=topic, inactivity_timeout=time_limit
-        ):
-            if method_frame is None:  # hit time limit
-                break
-            try:
-                message = Message(
-                    body=json.loads(body.decode("utf-8")),
-                    headers=properties.headers,
-                    _id=method_frame.delivery_tag,
-                )
-            except Exception as e:
-                logger.exception(f"Error parsing AMQP message: {e}")
+        if not topics:
+            return
+
+        if isinstance(topics, str):
+            topics = [topics]
+
+        if time_limit is not None:
+            end_time = time.monotonic() + time_limit
+        else:
+            end_time = None
+
+        # the basic_consume API is a bit awkward - we have to receive results via a
+        # callback - so we set up this list to use as a temporary storage location
+        responses: list[tuple] = []
+
+        def store_response(ch, method, props, body):
+            responses.append((topic, method, props, body))
+
+        for topic in topics:
+            channel.basic_consume(topic, store_response)
+
+        first = True
+        while True:
+            if end_time is not None:
+                delta = end_time - time.monotonic()
+                if delta <= 0:
+                    if first:
+                        delta = 0
+                    else:
+                        break
             else:
-                yield message
+                delta = None
+            first = False
+
+            connection.process_data_events(time_limit=delta)  # type: ignore
+
+            for topic, method_frame, properties, body in responses:
+                if method_frame is None:  # hit time limit
+                    return
+                try:
+                    message = Message(
+                        topic=topic,
+                        body=json.loads(body.decode("utf-8")),
+                        headers=properties.headers,
+                        _id=method_frame.delivery_tag,
+                    )
+                except Exception as e:
+                    logger.exception(f"Error parsing AMQP message: {e}")
+                else:
+                    yield message
+            responses.clear()
 
     def ack(self, message: Message) -> None:
-        if not self.channel:
-            raise ConnectionError("Not connected to AMQP broker")
-        self.channel.basic_ack(delivery_tag=message._id)
+        connection, channel = self._assert_connected()
+        channel.basic_ack(delivery_tag=message._id)
 
     def requeue(self, message: Message) -> None:
-        if not self.channel:
-            raise ConnectionError("Not connected to AMQP broker")
-        self.channel.basic_nack(delivery_tag=message._id, requeue=True)
+        connection, channel = self._assert_connected()
+        channel.basic_nack(delivery_tag=message._id, requeue=True)
