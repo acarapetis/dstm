@@ -16,14 +16,10 @@ wiring: TaskWiring = {"simple_task": simple_task}.__getitem__
 
 
 def test_simple_task(topic: str, make_client: ClientFactory):
-    c = make_client()
-    c.connect()
-    submit_task(topic, "simple_task", c, "steve", 3)
-    c.disconnect()
+    with make_client() as c:
+        submit_task(topic, "simple_task", c, "steve", 3)
 
-    c = make_client()
-    c.connect()
     outputs.clear()
-    run_worker(c, topic, wiring, time_limit=0)
-    c.disconnect()
+    with make_client() as c:
+        run_worker(c, topic, wiring, time_limit=0)
     assert outputs == ["hi steve"] * 3

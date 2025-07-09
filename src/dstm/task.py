@@ -49,19 +49,41 @@ def submit_task(
 
 
 @dataclass
+class TaskBackend:
+    topic_prefix: str
+    wiring: TaskWiring
+    client: MessageClient
+
+    def run_worker(
+        self,
+        task_group: str,
+        time_limit: int | None = None,
+        task_limit: int | None = None,
+    ):
+        run_worker(
+            client=self.client,
+            topic=self.topic_prefix + task_group,
+            wiring=self.wiring,
+            time_limit=time_limit,
+            task_limit=task_limit,
+        )
+
+
+@dataclass
 class TaskWrapper(Generic[P, R]):
     """Function wrapper that attaches the necessary metadata to make it a task, and a
     convenience method to submit an instance of this task."""
 
     func: Callable[P, R]
-    topic: str
+    task_group: str
     task_name: str
 
     def __call__(self, *args: P.args, **kwargs: P.kwargs) -> R:
         return self.func(*args, **kwargs)
 
-    def submit(self, client: MessageClient, /, *args: P.args, **kwargs: P.kwargs):
-        submit_task(self.topic, self.task_name, client, *args, **kwargs)
+    def submit_to(self, backend: TaskBackend, /, *args: P.args, **kwargs: P.kwargs):
+        topic = backend.topic_prefix + self.task_group
+        submit_task(topic, self.task_name, backend.client, *args, **kwargs)
 
 
 def task(topic: str, task_name: str | None = None):
