@@ -14,7 +14,7 @@ def simple_task(name: str, count: int):
         outputs.append(f"hi {name}")
 
 
-wiring = HardWiring({"simple_task": simple_task})
+wiring = HardWiring({"default": {"simple_task": simple_task}})
 
 
 def test_simple_task(topic: str, client: MessageClient):

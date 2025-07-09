@@ -1,10 +1,10 @@
 import logging
 from dataclasses import dataclass, field
-from typing import Any, Iterable, ParamSpec
+from typing import Iterable, ParamSpec
 
 from dstm.client.base import MessageClient
 from dstm.message import Message
-from dstm.tasks.task import TaskWrapper
+from dstm.tasks.types import TaskImpl
 from dstm.tasks.wiring import AutoWiring, TaskWiring
 from dstm.tasks.worker import TaskInstance, run_worker
 
@@ -71,7 +71,7 @@ class TaskBackend:
             for g in task_groups:
                 self.client.destroy_topic(self.topic_prefix + g)
 
-    def submit(self, task: TaskWrapper[P, Any], /, *args: P.args, **kwargs: P.kwargs):
-        task_name = self.wiring.func_to_name(task)
-        topic = self.topic_prefix + task.task_group
-        submit_task(topic, task_name, self.client, *args, **kwargs)
+    def submit(self, task: TaskImpl[P], /, *args: P.args, **kwargs: P.kwargs):
+        task_id = self.wiring.func_to_identity(task)
+        topic = self.topic_prefix + task_id.group
+        submit_task(topic, task_id.name, self.client, *args, **kwargs)
