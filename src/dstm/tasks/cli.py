@@ -21,7 +21,7 @@ def setup(verbose: Annotated[bool, Option("-v")] = False):
 def worker(
     broker_uri: Annotated[str, Option(envvar="DSTM_BROKER_URI")],
     queues: Annotated[str, Option(envvar="DSTM_WORKER_QUEUES")] = "dstm",
-    queue_prefix: Annotated[str, Option(envvar="DSTM_queue_PREFIX")] = "",
+    queue_prefix: Annotated[str, Option(envvar="DSTM_QUEUE_PREFIX")] = "",
 ):
     queuelist = queues.split(",")
     broker = TaskBroker(queue_prefix=queue_prefix, client=client_from_uri(broker_uri))
@@ -33,7 +33,7 @@ def worker(
 def submit(
     task: str,
     broker_uri: Annotated[str, Option(envvar="DSTM_BROKER_URI")],
-    queue_prefix: Annotated[str, Option(envvar="DSTM_queue_PREFIX")] = "",
+    queue_prefix: Annotated[str, Option(envvar="DSTM_QUEUE_PREFIX")] = "",
     args_json: Annotated[str, Option()] = "[]",
     kwargs_json: Annotated[str, Option()] = "{}",
 ):
