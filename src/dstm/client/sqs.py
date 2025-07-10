@@ -1,7 +1,7 @@
 import json
 import logging
 import time
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Generator, Iterable
 
 from dstm.client.base import MessageClient
@@ -15,11 +15,17 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
+def _default_client():
+    import boto3
+
+    return boto3.client("sqs")
+
+
 @dataclass
 class SQSClient(MessageClient):
     """SQS client using boto3."""
 
-    client: "mypy_boto3_sqs.client.SQSClient"
+    client: "mypy_boto3_sqs.client.SQSClient" = field(default_factory=_default_client)
     long_poll_time: int = 5
     max_messages_per_request: int = 1
     visibility_timeout: int = 30
@@ -53,7 +59,7 @@ class SQSClient(MessageClient):
             raise ConnectionError("Not connected to SQS")
 
         try:
-            queue_url = self._get_queue_url(message.topic)
+            queue_url = self._get_queue_url(message.queue)
 
             # Prepare message
             message_body = json.dumps(message.body)
@@ -72,34 +78,34 @@ class SQSClient(MessageClient):
                 MessageAttributes=message_attributes,
             )
 
-            logger.debug(f"Published message to SQS queue: {message.topic}")
+            logger.debug(f"Published message to SQS queue: {message.queue}")
         except Exception as e:
             raise PublishError(f"Failed to publish message: {e}") from e
 
-    def create_topic(self, topic: str) -> None:
-        self.client.create_queue(QueueName=topic)
+    def create_queue(self, queue: str) -> None:
+        self.client.create_queue(QueueName=queue)
         logger.debug(f"Setting VisibilityTimeout={self.visibility_timeout}")
         self.client.set_queue_attributes(
-            QueueUrl=self._get_queue_url(topic),
+            QueueUrl=self._get_queue_url(queue),
             Attributes={"VisibilityTimeout": str(self.visibility_timeout)},
         )
 
-    def destroy_topic(self, topic: str) -> None:
-        self.client.delete_queue(QueueUrl=self._get_queue_url(topic))
+    def destroy_queue(self, queue: str) -> None:
+        self.client.delete_queue(QueueUrl=self._get_queue_url(queue))
 
     def listen(
-        self, topics: Iterable[str] | str, time_limit: int | None = None
+        self, queues: Iterable[str] | str, time_limit: int | None = None
     ) -> Generator[Message]:
-        if not topics:
+        if not queues:
             return
 
-        if isinstance(topics, str):
-            topics = [topics]
+        if isinstance(queues, str):
+            queues = [queues]
         else:
-            topics = list(topics)
+            queues = list(queues)
 
         # Don't use long polling if we have multiple queues to check
-        wait_time = self.long_poll_time if len(topics) == 1 else 0
+        wait_time = self.long_poll_time if len(queues) == 1 else 0
 
         if time_limit is not None:
             end_time = time.monotonic() + time_limit
@@ -113,22 +119,22 @@ class SQSClient(MessageClient):
                 if delta <= 0:
                     if first:
                         logger.debug(
-                            f"{topics=}, {time_limit=}; {delta=} but this is "
+                            f"{queues=}, {time_limit=}; {delta=} but this is "
                             "the first loop, setting delta = 0"
                         )
                         delta = 0
                     else:
-                        logger.debug(f"{topics=}, {time_limit=}; {delta=}, breaking")
+                        logger.debug(f"{queues=}, {time_limit=}; {delta=}, breaking")
                         break
                 else:
-                    logger.debug(f"{topics=}, {time_limit=}; {delta=}")
+                    logger.debug(f"{queues=}, {time_limit=}; {delta=}")
                 if wait_time > delta:
                     wait_time = delta
-            logger.debug(f"{topics=}, {time_limit=}; continuing with {int(wait_time)=}")
+            logger.debug(f"{queues=}, {time_limit=}; continuing with {int(wait_time)=}")
             first = False
 
-            for topic in topics:
-                queue_url = self._get_queue_url(topic)
+            for queue in queues:
+                queue_url = self._get_queue_url(queue)
                 response = self.client.receive_message(
                     QueueUrl=queue_url,
                     MaxNumberOfMessages=self.max_messages_per_request,
@@ -145,7 +151,7 @@ class SQSClient(MessageClient):
                         assert "Body" in sqs_message
                         assert "ReceiptHandle" in sqs_message
                         message = Message(
-                            topic=topic,
+                            queue=queue,
                             body=json.loads(sqs_message["Body"]),
                             headers={
                                 k: v["StringValue"]
@@ -159,8 +165,8 @@ class SQSClient(MessageClient):
                     else:
                         yield message
 
-            if len(topics) > 1:
-                # When watching multiple topics we don't use long-polling, so we need to
+            if len(queues) > 1:
+                # When watching multiple queues we don't use long-polling, so we need to
                 # manually sleep to avoid hammering the API
                 time.sleep(self.short_poll_sleep_seconds)
 

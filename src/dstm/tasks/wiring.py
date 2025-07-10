@@ -15,12 +15,12 @@ class TaskWiring(Generic[T], Protocol):
 class AutoWiring(TaskWiring[T]):
     def func_to_identity(self, func: T) -> TaskIdentity:
         try:
-            task_group = getattr(func, "task_group")
+            queue = getattr(func, "queue")
         except AttributeError as e:
             raise WiringError(
                 "AutoWiring only works with @task-decorated functions"
             ) from e
-        return TaskIdentity(f"{func.__module__}:{func.__name__}", task_group)
+        return TaskIdentity(f"{func.__module__}:{func.__name__}", queue)
 
     def name_to_func(self, task_name: str) -> T:
         module, name = task_name.split(":")
@@ -34,13 +34,13 @@ class HardWiring(TaskWiring[T]):
     def __init__(self, mapping: dict[str, dict[str, T]]):
         self.funcs = {
             name: func
-            for group, group_map in mapping.items()
-            for name, func in group_map.items()
+            for queue, submap in mapping.items()
+            for name, func in submap.items()
         }
         self.ids = {
-            func: TaskIdentity(name, group)
-            for group, group_map in mapping.items()
-            for name, func in group_map.items()
+            func: TaskIdentity(name, queue)
+            for queue, submap in mapping.items()
+            for name, func in submap.items()
         }
 
     def name_to_func(self, task_name: str) -> T:

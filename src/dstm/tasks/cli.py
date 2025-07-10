@@ -20,24 +20,24 @@ def setup(verbose: Annotated[bool, Option("-v")] = False):
 @cli.command()
 def worker(
     broker_uri: Annotated[str, Option(envvar="DSTM_BROKER_URI")],
-    task_groups: Annotated[str, Option(envvar="DSTM_TASK_GROUPS")] = "dstm",
-    topic_prefix: Annotated[str, Option(envvar="DSTM_TOPIC_PREFIX")] = "",
+    queues: Annotated[str, Option(envvar="DSTM_WORKER_QUEUES")] = "dstm",
+    queue_prefix: Annotated[str, Option(envvar="DSTM_queue_PREFIX")] = "",
 ):
-    tgroups = task_groups.split(",")
-    backend = TaskBackend(topic_prefix=topic_prefix, client=client_from_uri(broker_uri))
-    backend.create_topics(task_groups=tgroups)
-    backend.run_worker(task_groups=tgroups)
+    queuelist = queues.split(",")
+    backend = TaskBackend(queue_prefix=queue_prefix, client=client_from_uri(broker_uri))
+    backend.create_queues(queues=queuelist)
+    backend.run_worker(queues=queuelist)
 
 
 @cli.command()
 def submit(
     task: str,
     broker_uri: Annotated[str, Option(envvar="DSTM_BROKER_URI")],
-    topic_prefix: Annotated[str, Option(envvar="DSTM_TOPIC_PREFIX")] = "",
+    queue_prefix: Annotated[str, Option(envvar="DSTM_queue_PREFIX")] = "",
     args_json: Annotated[str, Option()] = "[]",
     kwargs_json: Annotated[str, Option()] = "{}",
 ):
-    backend = TaskBackend(topic_prefix=topic_prefix, client=client_from_uri(broker_uri))
+    backend = TaskBackend(queue_prefix=queue_prefix, client=client_from_uri(broker_uri))
     args = json.loads(args_json)
     kwargs = json.loads(kwargs_json)
     backend.submit(backend.wiring.name_to_func(task), *args, **kwargs)

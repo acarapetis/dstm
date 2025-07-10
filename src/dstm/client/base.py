@@ -21,13 +21,13 @@ class MessageClient(Protocol):
         ...
 
     def publish(self, message: Message) -> None:
-        """Publish a message to a topic."""
+        """Publish a message to a queue."""
         ...
 
     def listen(
-        self, topics: Iterable[str] | str, time_limit: int | None = None
+        self, queues: Iterable[str] | str, time_limit: int | None = None
     ) -> Generator[Message]:
-        """Listen for messages on one or more topics. Blocks while listening, then
+        """Listen for messages on one or more queues. Blocks while listening, then
         yields message contents and repeats."""
         ...
 
@@ -39,10 +39,10 @@ class MessageClient(Protocol):
         """Tell the broker that a message should be requeued."""
         ...
 
-    def create_topic(self, topic: str) -> None:
-        """Create a topic if it does not already exist."""
+    def create_queue(self, queue: str) -> None:
+        """Create a queue if it does not already exist."""
         ...
 
-    def destroy_topic(self, topic: str) -> None:
-        """Delete an existing topic."""
+    def destroy_queue(self, queue: str) -> None:
+        """Delete an existing queue."""
         ...

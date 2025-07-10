@@ -43,25 +43,25 @@ def client(request):
 
 
 @pytest.fixture()
-def topic(client: MessageClient):
-    yield from _test_topic(client)
+def queue(client: MessageClient):
+    yield from _test_queue(client)
 
 
-TopicFactory = Callable[[], str]
+QueueFactory = Callable[[], str]
 
 
 @pytest.fixture()
-def topic_factory(client: MessageClient) -> TopicFactory:
+def queue_factory(client: MessageClient) -> QueueFactory:
     def factory():
-        return next(_test_topic(client))
+        return next(_test_queue(client))
 
     return factory
 
 
-def _test_topic(client: MessageClient):
+def _test_queue(client: MessageClient):
     t = "".join(choices(ascii_lowercase, k=10))
     with client:
-        client.create_topic(t)
+        client.create_queue(t)
     yield t
     with client:
-        client.destroy_topic(t)
+        client.destroy_queue(t)

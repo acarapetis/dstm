@@ -6,7 +6,7 @@ T = TypeVar("T")
 
 @dataclass
 class Message(Generic[T]):
-    topic: str
+    queue: str
     body: T
     headers: dict[str, Any] = field(default_factory=dict)
     _id: Any = None

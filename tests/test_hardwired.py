@@ -20,8 +20,8 @@ def test_hardwired_worker(client: MessageClient, capfd):
 
     prefix = "".join(choices(ascii_lowercase, k=10))
     backend = TaskBackend(client, prefix, wiring)
-    backend.destroy_topics(["rabbits"])
-    backend.create_topics(["rabbits"])
+    backend.destroy_queues(["rabbits"])
+    backend.create_queues(["rabbits"])
 
     backend.submit(what_that_rabbit_do, "peter")
 
@@ -30,4 +30,4 @@ def test_hardwired_worker(client: MessageClient, capfd):
     out, err = capfd.readouterr()
     assert out == "peter digs holes.\n"
 
-    backend.destroy_topics(["rabbits"])
+    backend.destroy_queues(["rabbits"])

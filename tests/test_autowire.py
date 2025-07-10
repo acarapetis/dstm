@@ -19,8 +19,8 @@ def test_direct_call_of_decorated_task(capfd):
 def test_autowired_worker(client: MessageClient, capfd):
     prefix = "".join(choices(ascii_lowercase, k=10))
     backend = TaskBackend(client, prefix)
-    backend.destroy_topics(["warren"])
-    backend.create_topics(["warren"])
+    backend.destroy_queues(["warren"])
+    backend.create_queues(["warren"])
 
     from tests.rabbit_city.names import name_rabbits
 
@@ -38,4 +38,4 @@ def test_autowired_worker(client: MessageClient, capfd):
 
     # The worker should have dynamically imported the module based on the task message
     assert "tests.rabbit_city.names" in sys.modules
-    backend.destroy_topics(["warren"])
+    backend.destroy_queues(["warren"])

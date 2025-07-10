@@ -16,4 +16,4 @@ class TaskImpl(Generic[P], Protocol):
 @dataclass
 class TaskIdentity:
     name: str
-    group: str
+    queue: str

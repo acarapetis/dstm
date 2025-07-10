@@ -62,13 +62,13 @@ class AMQPClient(MessageClient):
             raise ConnectionError("Not connected to AMQP broker")
         return self.connection, self.channel
 
-    def create_topic(self, topic: str) -> None:
+    def create_queue(self, queue: str) -> None:
         connection, channel = self._assert_connected()
-        channel.queue_declare(queue=topic, durable=True)
+        channel.queue_declare(queue=queue, durable=True)
 
-    def destroy_topic(self, topic: str) -> None:
+    def destroy_queue(self, queue: str) -> None:
         connection, channel = self._assert_connected()
-        channel.queue_delete(queue=topic)
+        channel.queue_delete(queue=queue)
 
     def publish(self, message: Message) -> None:
         connection, channel = self._assert_connected()
@@ -81,25 +81,25 @@ class AMQPClient(MessageClient):
             )
 
             channel.basic_publish(
-                exchange="", routing_key=message.topic, body=body, properties=properties
+                exchange="", routing_key=message.queue, body=body, properties=properties
             )
 
-            logger.debug(f"Published message to queue: {message.topic}")
+            logger.debug(f"Published message to queue: {message.queue}")
         except Exception as e:
             raise PublishError(f"Failed to publish message: {e}") from e
 
     def listen(
         self,
-        topics: Iterable[str] | str,
+        queues: Iterable[str] | str,
         time_limit: float | None = None,
     ) -> Generator[Message]:
         connection, channel = self._assert_connected()
 
-        if not topics:
+        if not queues:
             return
 
-        if isinstance(topics, str):
-            topics = [topics]
+        if isinstance(queues, str):
+            queues = [queues]
 
         if time_limit is not None:
             end_time = time.monotonic() + time_limit
@@ -111,10 +111,10 @@ class AMQPClient(MessageClient):
         responses: list[tuple] = []
 
         def store_response(ch, method, props, body):
-            responses.append((topic, method, props, body))
+            responses.append((queue, method, props, body))
 
-        for topic in topics:
-            channel.basic_consume(topic, store_response)
+        for queue in queues:
+            channel.basic_consume(queue, store_response)
 
         first = True
         while True:
@@ -131,12 +131,12 @@ class AMQPClient(MessageClient):
 
             connection.process_data_events(time_limit=delta)  # type: ignore
 
-            for topic, method_frame, properties, body in responses:
+            for queue, method_frame, properties, body in responses:
                 if method_frame is None:  # hit time limit
                     return
                 try:
                     message = Message(
-                        topic=topic,
+                        queue=queue,
                         body=json.loads(body.decode("utf-8")),
                         headers=properties.headers,
                         _id=method_frame.delivery_tag,

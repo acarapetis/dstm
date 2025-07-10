@@ -23,14 +23,14 @@ def run_task(instance: TaskInstance, wiring: TaskWiring):
 
 def run_worker(
     client: MessageClient,
-    topics: list[str],
+    queues: list[str],
     wiring: TaskWiring,
     time_limit: int | None = None,
     task_limit: int | None = None,
 ):
     with client:
-        logger.info(f"Worker started using {client!r}, watching topics {topics}")
-        for index, message in enumerate(client.listen(topics, time_limit=time_limit)):
+        logger.info(f"Worker started using {client!r}, watching queues {queues}")
+        for index, message in enumerate(client.listen(queues, time_limit=time_limit)):
             try:
                 t0 = time.perf_counter()
                 run_task(message.body, wiring)

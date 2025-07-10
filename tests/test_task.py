@@ -16,9 +16,9 @@ def simple_task(name: str, count: int):
 wiring = HardWiring({"default": {"simple_task": simple_task}})
 
 
-def test_simple_task(topic: str, client: MessageClient):
-    submit_task(topic, "simple_task", client, "steve", 3)
+def test_simple_task(queue: str, client: MessageClient):
+    submit_task(queue, "simple_task", client, "steve", 3)
 
     outputs.clear()
-    run_worker(client, [topic], wiring, time_limit=0)
+    run_worker(client, [queue], wiring, time_limit=0)
     assert outputs == ["hi steve"] * 3

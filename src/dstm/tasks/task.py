@@ -21,7 +21,7 @@ class TaskWrapper(Generic[P, R], TaskImpl[P]):
     convenience method to submit an instance of this task."""
 
     func: Callable[P, R]
-    task_group: str
+    queue: str
     __name__: str
 
     def __call__(self, *args: P.args, **kwargs: P.kwargs) -> R:
@@ -32,9 +32,9 @@ class TaskWrapper(Generic[P, R], TaskImpl[P]):
         backend.submit(self, *args, **kwargs)
 
 
-def task(task_group: str):
+def task(queue: str):
     def decorator(func: Callable[P, R]) -> TaskWrapper[P, R]:
-        wrapper = TaskWrapper(func, task_group, __name__=func.__name__)
+        wrapper = TaskWrapper(func, queue, __name__=func.__name__)
         update_wrapper(wrapper, func)
         return wrapper
 
