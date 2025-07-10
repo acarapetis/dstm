@@ -1,5 +1,4 @@
-"""Tests for low-level task functions with hardwired name->implementation mappings and
-explicit topics"""
+"""Tests for low-level task functions (without using the TaskBackend)"""
 
 from dstm.client.base import MessageClient
 from dstm.tasks.backend import submit_task
