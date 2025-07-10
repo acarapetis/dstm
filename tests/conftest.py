@@ -60,8 +60,8 @@ def queue_factory(client: MessageClient) -> QueueFactory:
 
 def _test_queue(client: MessageClient):
     t = "".join(choices(ascii_lowercase, k=10))
-    with client:
-        client.create_queue(t)
+    with client.connect() as conn:
+        conn.create_queue(t)
     yield t
-    with client:
-        client.destroy_queue(t)
+    with client.connect() as conn:
+        conn.destroy_queue(t)

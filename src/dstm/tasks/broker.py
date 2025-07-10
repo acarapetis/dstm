@@ -19,7 +19,7 @@ def submit_task(
     *args,
     **kwargs,
 ) -> None:
-    with client:
+    with client.connect() as conn:
         logger.info(f"Submitting {task_name=} to {queue=}")
         msg: Message[TaskInstance] = Message(
             queue,
@@ -29,7 +29,7 @@ def submit_task(
                 "kwargs": kwargs,
             },
         )
-        client.publish(msg)
+        conn.publish(msg)
 
 
 P = ParamSpec("P")
@@ -60,16 +60,16 @@ class TaskBroker:
     def create_queues(self, queues: Iterable[str] | str):
         if isinstance(queues, str):
             queues = [queues]
-        with self.client:
+        with self.client.connect() as conn:
             for g in queues:
-                self.client.create_queue(self.queue_prefix + g)
+                conn.create_queue(self.queue_prefix + g)
 
     def destroy_queues(self, queues: Iterable[str] | str):
         if isinstance(queues, str):
             queues = [queues]
-        with self.client:
+        with self.client.connect() as conn:
             for g in queues:
-                self.client.destroy_queue(self.queue_prefix + g)
+                conn.destroy_queue(self.queue_prefix + g)
 
     def submit(self, task: TaskImpl[P], /, *args: P.args, **kwargs: P.kwargs):
         task_id = self.wiring.func_to_identity(task)

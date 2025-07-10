@@ -1,42 +1,29 @@
 import json
 import logging
 import time
-import warnings
+from dataclasses import dataclass
 from typing import Generator, Iterable
 
 import pika
 import pika.connection
 from pika.adapters.blocking_connection import BlockingChannel, BlockingConnection
 
-from dstm.client.base import MessageClient
+from dstm.client.base import MessageClient, MessageConnection
 from dstm.exceptions import PublishError
 from dstm.message import Message
 
 logger = logging.getLogger(__name__)
 
 
-class AMQPClient(MessageClient):
-    """AMQP client using pika."""
+class AMQPConnection(MessageConnection):
+    connection: BlockingConnection
+    channel: BlockingChannel
 
     def __init__(self, parameters: pika.connection.Parameters):
-        self.parameters = parameters
-        self.connection = None
-        self.channel = None
-
-    def __repr__(self):
-        return f"AMQPClient({self.parameters.host})"
-
-    def connect(self) -> None:
-        if self.connection and not self.connection.is_closed:
-            warnings.warn(
-                "AMQPClient.connect() called before previous connection was closed. "
-                "Closing it automatically, but something seems wrong."
-            )
-            self.disconnect()
         try:
-            self.connection = pika.BlockingConnection(self.parameters)
+            self.connection = BlockingConnection(parameters)
             self.channel = self.connection.channel()
-            logger.debug(f"Connected to AMQP broker {self.parameters}")
+            logger.debug(f"Connected to AMQP broker {parameters}")
         except Exception as e:
             raise ConnectionError(f"Failed to connect to AMQP: {e}") from e
 
@@ -46,7 +33,6 @@ class AMQPClient(MessageClient):
             logger.debug("Disconnected from AMQP broker {self.parameters}")
 
     def __enter__(self):
-        self.connect()
         return self
 
     def __exit__(self, type_, value, tb):
@@ -154,3 +140,16 @@ class AMQPClient(MessageClient):
     def requeue(self, message: Message) -> None:
         connection, channel = self._assert_connected()
         channel.basic_nack(delivery_tag=message._id, requeue=True)
+
+
+@dataclass
+class AMQPClient(MessageClient):
+    """AMQP client using pika."""
+
+    parameters: pika.connection.Parameters
+
+    def __repr__(self):
+        return f"AMQPClient({self.parameters.host})"
+
+    def connect(self) -> AMQPConnection:
+        return AMQPConnection(self.parameters)

@@ -4,7 +4,7 @@ import time
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Generator, Iterable
 
-from dstm.client.base import MessageClient
+from dstm.client.base import MessageClient, MessageConnection
 from dstm.exceptions import PublishError
 from dstm.message import Message
 
@@ -15,7 +15,7 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
-def _default_client():
+def _client():
     import boto3
 
     return boto3.client("sqs")
@@ -25,17 +25,26 @@ def _default_client():
 class SQSClient(MessageClient):
     """SQS client using boto3."""
 
-    client: "mypy_boto3_sqs.client.SQSClient" = field(default_factory=_default_client)
+    client: "mypy_boto3_sqs.client.SQSClient" = field(default_factory=_client)
     long_poll_time: int = 5
     max_messages_per_request: int = 1
     visibility_timeout: int = 30
     short_poll_sleep_seconds: float = 1
 
+    def connect(self):
+        return SQSConnection(self)
+
+
+@dataclass
+class SQSConnection(MessageConnection):
+    client: SQSClient
+
+    @property
+    def botoc(self):
+        return self.client.client
+
     def __repr__(self):
         return "SQSClient"
-
-    def connect(self) -> None:
-        pass  # No persistent connection required
 
     def disconnect(self) -> None:
         pass  # No persistent connection required
@@ -48,14 +57,14 @@ class SQSClient(MessageClient):
 
     def _get_queue_url(self, queue_name: str) -> str:
         try:
-            response = self.client.get_queue_url(QueueName=queue_name)
-        except self.client.exceptions.QueueDoesNotExist:
-            response = self.client.create_queue(QueueName=queue_name)
+            response = self.botoc.get_queue_url(QueueName=queue_name)
+        except self.botoc.exceptions.QueueDoesNotExist:
+            response = self.botoc.create_queue(QueueName=queue_name)
         return response["QueueUrl"]
 
     def publish(self, message: Message) -> None:
         """Publish message to SQS queue."""
-        if not self.client:
+        if not self.botoc:
             raise ConnectionError("Not connected to SQS")
 
         try:
@@ -72,7 +81,7 @@ class SQSClient(MessageClient):
             }
 
             # Send message
-            self.client.send_message(
+            self.botoc.send_message(
                 QueueUrl=queue_url,
                 MessageBody=message_body,
                 MessageAttributes=message_attributes,
@@ -83,15 +92,15 @@ class SQSClient(MessageClient):
             raise PublishError(f"Failed to publish message: {e}") from e
 
     def create_queue(self, queue: str) -> None:
-        self.client.create_queue(QueueName=queue)
-        logger.debug(f"Setting VisibilityTimeout={self.visibility_timeout}")
-        self.client.set_queue_attributes(
+        self.botoc.create_queue(QueueName=queue)
+        logger.debug(f"Setting VisibilityTimeout={self.client.visibility_timeout}")
+        self.botoc.set_queue_attributes(
             QueueUrl=self._get_queue_url(queue),
-            Attributes={"VisibilityTimeout": str(self.visibility_timeout)},
+            Attributes={"VisibilityTimeout": str(self.client.visibility_timeout)},
         )
 
     def destroy_queue(self, queue: str) -> None:
-        self.client.delete_queue(QueueUrl=self._get_queue_url(queue))
+        self.botoc.delete_queue(QueueUrl=self._get_queue_url(queue))
 
     def listen(
         self, queues: Iterable[str] | str, time_limit: int | None = None
@@ -105,7 +114,7 @@ class SQSClient(MessageClient):
             queues = list(queues)
 
         # Don't use long polling if we have multiple queues to check
-        wait_time = self.long_poll_time if len(queues) == 1 else 0
+        wait_time = self.client.long_poll_time if len(queues) == 1 else 0
 
         if time_limit is not None:
             end_time = time.monotonic() + time_limit
@@ -135,9 +144,9 @@ class SQSClient(MessageClient):
 
             for queue in queues:
                 queue_url = self._get_queue_url(queue)
-                response = self.client.receive_message(
+                response = self.botoc.receive_message(
                     QueueUrl=queue_url,
-                    MaxNumberOfMessages=self.max_messages_per_request,
+                    MaxNumberOfMessages=self.client.max_messages_per_request,
                     WaitTimeSeconds=int(wait_time),
                     MessageAttributeNames=["All"],
                 )
@@ -168,16 +177,16 @@ class SQSClient(MessageClient):
             if len(queues) > 1:
                 # When watching multiple queues we don't use long-polling, so we need to
                 # manually sleep to avoid hammering the API
-                time.sleep(self.short_poll_sleep_seconds)
+                time.sleep(self.client.short_poll_sleep_seconds)
 
     def ack(self, message: Message):
-        self.client.delete_message(
+        self.botoc.delete_message(
             QueueUrl=message._id[0],
             ReceiptHandle=message._id[1],
         )
 
     def requeue(self, message: Message) -> None:
-        self.client.change_message_visibility(
+        self.botoc.change_message_visibility(
             QueueUrl=message._id[0],
             ReceiptHandle=message._id[1],
             VisibilityTimeout=0,

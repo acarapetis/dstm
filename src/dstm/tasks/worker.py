@@ -28,9 +28,9 @@ def run_worker(
     time_limit: int | None = None,
     task_limit: int | None = None,
 ):
-    with client:
+    with client.connect() as conn:
         logger.info(f"Worker started using {client!r}, watching queues {queues}")
-        for index, message in enumerate(client.listen(queues, time_limit=time_limit)):
+        for index, message in enumerate(conn.listen(queues, time_limit=time_limit)):
             try:
                 t0 = time.perf_counter()
                 run_task(message.body, wiring)
@@ -39,12 +39,12 @@ def run_worker(
                 logger.exception(
                     f"Error running task {message.body['task_name']}, requeuing."
                 )
-                client.requeue(message)
+                conn.requeue(message)
             else:
                 logger.info(
                     f"Task {message.body['task_name']} succeeded in {dt:.1e} seconds."
                 )
-                client.ack(message)
+                conn.ack(message)
             if task_limit is not None and index + 1 >= task_limit:
                 logger.info(f"Worker hit task limit of {task_limit}, terminating.")
                 break

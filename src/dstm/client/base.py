@@ -2,23 +2,12 @@ from typing import Generator, Iterable, Protocol, TypeVar
 
 from dstm.message import Message
 
-Self = TypeVar("Self", bound="MessageClient")
+TConn = TypeVar("TConn", bound="MessageConnection")
 
 
-class MessageClient(Protocol):
-    """Abstract base class for messaging clients."""
-
-    def __enter__(self: Self) -> Self: ...
-
+class MessageConnection(Protocol):
+    def __enter__(self: TConn) -> TConn: ...
     def __exit__(self, type_, value, tb): ...
-
-    def connect(self) -> None:
-        """Establish connection to the messaging system."""
-        ...
-
-    def disconnect(self) -> None:
-        """Close connection to the messaging system."""
-        ...
 
     def publish(self, message: Message) -> None:
         """Publish a message to a queue."""
@@ -45,4 +34,10 @@ class MessageClient(Protocol):
 
     def destroy_queue(self, queue: str) -> None:
         """Delete an existing queue."""
+        ...
+
+
+class MessageClient(Protocol):
+    def connect(self) -> MessageConnection:
+        """Establish connection to the messaging system."""
         ...
