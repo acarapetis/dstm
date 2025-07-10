@@ -22,7 +22,8 @@ class SQSClient(MessageClient):
     client: "mypy_boto3_sqs.client.SQSClient"
     long_poll_time: int = 5
     max_messages_per_request: int = 1
-    visibility_timeout_for_new_queues: int = 30
+    visibility_timeout: int = 30
+    short_poll_sleep_seconds: float = 1
 
     def __repr__(self):
         return "SQSClient"
@@ -77,14 +78,10 @@ class SQSClient(MessageClient):
 
     def create_topic(self, topic: str) -> None:
         self.client.create_queue(QueueName=topic)
-        logger.debug(
-            f"Setting VisibilityTimeout={self.visibility_timeout_for_new_queues}"
-        )
+        logger.debug(f"Setting VisibilityTimeout={self.visibility_timeout}")
         self.client.set_queue_attributes(
             QueueUrl=self._get_queue_url(topic),
-            Attributes={
-                "VisibilityTimeout": str(self.visibility_timeout_for_new_queues)
-            },
+            Attributes={"VisibilityTimeout": str(self.visibility_timeout)},
         )
 
     def destroy_topic(self, topic: str) -> None:
@@ -165,7 +162,7 @@ class SQSClient(MessageClient):
             if len(topics) > 1:
                 # When watching multiple topics we don't use long-polling, so we need to
                 # manually sleep to avoid hammering the API
-                time.sleep(1)
+                time.sleep(self.short_poll_sleep_seconds)
 
     def ack(self, message: Message):
         self.client.delete_message(

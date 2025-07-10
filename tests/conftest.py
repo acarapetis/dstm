@@ -24,7 +24,8 @@ def make_sqs():
             aws_access_key_id="test",
             aws_secret_access_key="test",
         ),
-        visibility_timeout_for_new_queues=1,
+        visibility_timeout=0,
+        short_poll_sleep_seconds=0.01,
     )
 
 

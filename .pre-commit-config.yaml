@@ -3,3 +3,12 @@ repos:
     rev: 4b94be130f0326b2abddb9cade8248eb4b0fdadb # uv 0.7.20
     hooks:
       - id: uv-lock
+  - repo: local
+    hooks:
+      - id: fasttest
+        name: run fast tests
+        language: system
+        types: [python]
+        pass_filenames: false
+        entry: uv run pytest
+        args: ["-m", "not slow"]

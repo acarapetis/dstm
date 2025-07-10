@@ -17,6 +17,7 @@ def test_send_receive(topic: str, client: MessageClient):
         client.ack(msg)
 
 
+@pytest.mark.slow
 def test_timeout(topic, client: MessageClient):
     with client:
         t0 = time.monotonic()
@@ -57,9 +58,9 @@ def test_autoexpire_then_ack(topic, client: MessageClient):
         assert msg.body == {"hello": "world"}
         # Don't requeue, let the broker return it to the queue automatically
 
-    # Message should become visible within 2 seconds
+    # Message should become visible again quickly:
     with client:
-        msg = next(client.listen(topic, time_limit=2))
+        msg = next(client.listen(topic, time_limit=0))
         assert msg.body == {"hello": "world"}
         client.ack(msg)
 
