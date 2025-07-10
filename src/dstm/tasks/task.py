@@ -8,7 +8,7 @@ from dstm.tasks.types import TaskImpl
 logger = logging.getLogger(__name__)
 
 if TYPE_CHECKING:
-    from dstm.tasks.backend import TaskBackend
+    from dstm.tasks.broker import TaskBroker
 
 
 P = ParamSpec("P")
@@ -27,9 +27,9 @@ class TaskWrapper(Generic[P, R], TaskImpl[P]):
     def __call__(self, *args: P.args, **kwargs: P.kwargs) -> R:
         return self.func(*args, **kwargs)
 
-    def submit_to(self, backend: "TaskBackend", /, *args: P.args, **kwargs: P.kwargs):
+    def submit_to(self, broker: "TaskBroker", /, *args: P.args, **kwargs: P.kwargs):
         """Alternative phrasing of backend.submit(self, ...)."""
-        backend.submit(self, *args, **kwargs)
+        broker.submit(self, *args, **kwargs)
 
 
 def task(queue: str):

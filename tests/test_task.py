@@ -1,7 +1,7 @@
-"""Tests for low-level task functions (without using the TaskBackend)"""
+"""Tests for low-level task functions (without using the TaskBroker)"""
 
 from dstm.client.base import MessageClient
-from dstm.tasks.backend import submit_task
+from dstm.tasks.broker import submit_task
 from dstm.tasks.wiring import HardWiring
 from dstm.tasks.worker import run_worker
 

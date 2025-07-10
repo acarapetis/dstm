@@ -36,7 +36,7 @@ P = ParamSpec("P")
 
 
 @dataclass
-class TaskBackend:
+class TaskBroker:
     client: MessageClient
     queue_prefix: str = ""
     wiring: TaskWiring = field(default_factory=AutoWiring)

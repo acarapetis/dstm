@@ -1,10 +1,10 @@
-"""Tests for hardwired plain-function tasks with TaskBackend"""
+"""Tests for hardwired plain-function tasks with TaskBroker"""
 
 from random import choices
 from string import ascii_lowercase
 
 from dstm.client.base import MessageClient
-from dstm.tasks.backend import TaskBackend
+from dstm.tasks.broker import TaskBroker
 
 
 def test_direct_call_of_undecorated_task(capfd):
@@ -19,15 +19,15 @@ def test_hardwired_worker(client: MessageClient, capfd):
     from tests.rabbit_city.tasks import what_that_rabbit_do, wiring
 
     prefix = "".join(choices(ascii_lowercase, k=10))
-    backend = TaskBackend(client, prefix, wiring)
-    backend.destroy_queues(["rabbits"])
-    backend.create_queues(["rabbits"])
+    broker = TaskBroker(client, prefix, wiring)
+    broker.destroy_queues(["rabbits"])
+    broker.create_queues(["rabbits"])
 
-    backend.submit(what_that_rabbit_do, "peter")
+    broker.submit(what_that_rabbit_do, "peter")
 
-    backend.run_worker("rabbits", time_limit=0)
+    broker.run_worker("rabbits", time_limit=0)
 
     out, err = capfd.readouterr()
     assert out == "peter digs holes.\n"
 
-    backend.destroy_queues(["rabbits"])
+    broker.destroy_queues(["rabbits"])
