@@ -2,9 +2,9 @@ from importlib import import_module
 from typing import Generic, Protocol, TypeVar
 
 from dstm.exceptions import WiringError
-from dstm.tasks.types import TaskIdentity, TaskImpl
+from dstm.tasks.types import TaskFunc, TaskIdentity
 
-T = TypeVar("T", bound=TaskImpl)
+T = TypeVar("T", bound=TaskFunc)
 
 
 class TaskWiring(Generic[T], Protocol):

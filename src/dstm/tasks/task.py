@@ -3,7 +3,7 @@ from dataclasses import dataclass
 from functools import update_wrapper
 from typing import TYPE_CHECKING, Callable, Generic, ParamSpec, TypeVar
 
-from dstm.tasks.types import TaskImpl
+from dstm.tasks.types import TaskFunc
 
 logger = logging.getLogger(__name__)
 
@@ -16,7 +16,7 @@ R = TypeVar("R")
 
 
 @dataclass
-class TaskWrapper(Generic[P, R], TaskImpl[P]):
+class TaskWrapper(Generic[P, R], TaskFunc[P]):
     """Function wrapper that attaches the necessary metadata to make it a task, and a
     convenience method to submit an instance of this task."""
 

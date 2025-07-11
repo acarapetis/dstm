@@ -4,7 +4,7 @@ from typing import Any, Generic, ParamSpec, Protocol
 P = ParamSpec("P")
 
 
-class TaskImpl(Generic[P], Protocol):
+class TaskFunc(Generic[P], Protocol):
     """Either a (non-anonymous) python function, or the result of wrapping one with
     @dstm.tasks.task.task."""
 

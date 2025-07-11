@@ -4,7 +4,7 @@ from typing import Iterable, ParamSpec
 
 from dstm.client.base import MessageClient
 from dstm.message import Message
-from dstm.tasks.types import TaskImpl
+from dstm.tasks.types import TaskFunc
 from dstm.tasks.wiring import AutoWiring, TaskWiring
 from dstm.tasks.worker import TaskInstance, run_worker
 
@@ -71,7 +71,7 @@ class TaskBroker:
             for g in queues:
                 conn.destroy_queue(self.queue_prefix + g)
 
-    def submit(self, task: TaskImpl[P], /, *args: P.args, **kwargs: P.kwargs):
+    def submit(self, task: TaskFunc[P], /, *args: P.args, **kwargs: P.kwargs):
         task_id = self.wiring.func_to_identity(task)
         queue = self.queue_prefix + task_id.queue
         submit_task(queue, task_id.name, self.client, *args, **kwargs)
