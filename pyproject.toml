@@ -1,6 +1,6 @@
 [project]
 name = "dstm"
-version = "0.1.5"
+version = "0.1.6"
 description = "DSTM - a simple message broker interface + task queue"
 readme = "README.md"
 authors = [

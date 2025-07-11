@@ -37,10 +37,10 @@ def submit(
     args_json: Annotated[str, Option()] = "[]",
     kwargs_json: Annotated[str, Option()] = "{}",
 ):
-    backend = TaskBroker(queue_prefix=queue_prefix, client=client_from_uri(broker_uri))
+    broker = TaskBroker(queue_prefix=queue_prefix, client=client_from_uri(broker_uri))
     args = json.loads(args_json)
     kwargs = json.loads(kwargs_json)
-    backend.submit(backend.wiring.get_task_by_name(task), *args, **kwargs)
+    broker.submit(broker.wiring.get_task_by_name(task), *args, **kwargs)
 
 
 if __name__ == "__main__":

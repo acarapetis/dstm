@@ -28,7 +28,7 @@ class TaskWrapper(Generic[P, R], TaskFunc[P]):
         return self.func(*args, **kwargs)
 
     def submit_to(self, broker: "TaskBroker", /, *args: P.args, **kwargs: P.kwargs):
-        """Alternative phrasing of backend.submit(self, ...)."""
+        """Alternative phrasing of broker.submit(self, ...)."""
         broker.submit(self, *args, **kwargs)
 
 
