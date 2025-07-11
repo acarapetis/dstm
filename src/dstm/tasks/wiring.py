@@ -1,3 +1,4 @@
+from dataclasses import dataclass
 from importlib import import_module
 from typing import Generic, Protocol, TypeVar
 
@@ -12,14 +13,17 @@ class TaskWiring(Generic[T], Protocol):
     def name_to_func(self, task_name: str) -> T: ...
 
 
+@dataclass
 class AutoWiring(TaskWiring[T]):
+    default_queue: str | None = None
+
     def func_to_identity(self, func: T) -> TaskIdentity:
-        try:
-            queue = getattr(func, "queue")
-        except AttributeError as e:
+        queue = getattr(func, "queue", self.default_queue)
+        if queue is None:
             raise WiringError(
-                "AutoWiring only works with @task-decorated functions"
-            ) from e
+                "AutoWiring without default_queue only works with "
+                "@task-decorated functions"
+            )
         return TaskIdentity(f"{func.__module__}:{func.__name__}", queue)
 
     def name_to_func(self, task_name: str) -> T:

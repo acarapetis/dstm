@@ -4,7 +4,10 @@ import sys
 from random import choices
 from string import ascii_lowercase
 
+import pytest
+
 from dstm.client.base import MessageClient
+from dstm.exceptions import WiringError
 from dstm.tasks.broker import TaskBroker
 
 
@@ -17,8 +20,8 @@ def test_direct_call_of_decorated_task(capfd):
 
 
 def test_autowired_worker(client: MessageClient, capfd):
-    prefix = "".join(choices(ascii_lowercase, k=10))
-    broker = TaskBroker(client, prefix)
+    prefix = "".join(choices(ascii_lowercase, k=10)) + "-"
+    broker = TaskBroker(client=client, queue_prefix=prefix)
     broker.destroy_queues(["warren"])
     broker.create_queues(["warren"])
 
@@ -39,3 +42,29 @@ def test_autowired_worker(client: MessageClient, capfd):
     # The worker should have dynamically imported the module based on the task message
     assert "tests.rabbit_city.names" in sys.modules
     broker.destroy_queues(["warren"])
+
+
+def test_autowired_worker_without_default_queue_error(client: MessageClient, capfd):
+    prefix = "".join(choices(ascii_lowercase, k=10)) + "-"
+    broker = TaskBroker(client=client, queue_prefix=prefix)
+    from tests.rabbit_city.tasks import what_that_rabbit_do
+
+    with pytest.raises(WiringError):
+        broker.submit(what_that_rabbit_do, "peter")
+
+
+def test_autowired_worker_with_default_queue(client: MessageClient, capfd):
+    prefix = "".join(choices(ascii_lowercase, k=10)) + "-"
+    broker = TaskBroker(client=client, default_queue="messages", queue_prefix=prefix)
+    broker.destroy_queues(["messages"])
+    broker.create_queues(["messages"])
+
+    from tests.rabbit_city.tasks import what_that_rabbit_do
+
+    broker.submit(what_that_rabbit_do, "peter")
+    broker.run_worker("messages", time_limit=0)
+
+    out, err = capfd.readouterr()
+    assert out == "peter digs holes.\n"
+
+    broker.destroy_queues(["messages"])

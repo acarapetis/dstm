@@ -19,7 +19,7 @@ def test_hardwired_worker(client: MessageClient, capfd):
     from tests.rabbit_city.tasks import what_that_rabbit_do, wiring
 
     prefix = "".join(choices(ascii_lowercase, k=10))
-    broker = TaskBroker(client, prefix, wiring)
+    broker = TaskBroker(client, wiring, queue_prefix=prefix)
     broker.destroy_queues(["rabbits"])
     broker.create_queues(["rabbits"])
 

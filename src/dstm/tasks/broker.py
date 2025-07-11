@@ -1,5 +1,4 @@
 import logging
-from dataclasses import dataclass, field
 from typing import Iterable, ParamSpec
 
 from dstm.client.base import MessageClient
@@ -35,11 +34,26 @@ def submit_task(
 P = ParamSpec("P")
 
 
-@dataclass
 class TaskBroker:
     client: MessageClient
-    queue_prefix: str = ""
-    wiring: TaskWiring = field(default_factory=AutoWiring)
+    wiring: TaskWiring
+    queue_prefix: str
+
+    def __init__(
+        self,
+        client: MessageClient,
+        wiring: TaskWiring | None = None,
+        queue_prefix: str = "",
+        default_queue: str | None = None,
+    ) -> None:
+        if wiring is None:
+            self.wiring = AutoWiring(default_queue=default_queue)
+        else:
+            self.wiring = wiring
+            if default_queue is not None:
+                raise ValueError("Cannot provide both `wiring` and `default_queue`")
+        self.client = client
+        self.queue_prefix = queue_prefix
 
     def run_worker(
         self,
