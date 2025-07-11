@@ -27,6 +27,7 @@ def run_worker(
     wiring: TaskWiring,
     time_limit: int | None = None,
     task_limit: int | None = None,
+    raise_errors: bool = False,
 ):
     with client.connect() as conn:
         logger.info(f"Worker started using {client!r}, watching queues {queues}")
@@ -39,6 +40,8 @@ def run_worker(
                 logger.exception(
                     f"Error running task {message.body['task_name']}, requeuing."
                 )
+                if raise_errors:
+                    raise
                 conn.requeue(message)
             else:
                 logger.info(

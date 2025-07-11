@@ -25,7 +25,7 @@ def test_hardwired_worker(client: MessageClient, capfd):
 
     broker.submit(what_that_rabbit_do, "peter")
 
-    broker.run_worker("rabbits", time_limit=0)
+    broker.run_worker("rabbits", time_limit=0, raise_errors=True)
 
     out, err = capfd.readouterr()
     assert out == "peter digs holes.\n"

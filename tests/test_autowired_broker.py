@@ -34,7 +34,7 @@ def test_autowired_worker(client: MessageClient, capfd):
     sys.modules.pop("tests.rabbit_city.names", None)
     assert "tests.rabbit_city.names" not in sys.modules
 
-    broker.run_worker("warren", time_limit=0)
+    broker.run_worker("warren", time_limit=0, raise_errors=True)
 
     out, err = capfd.readouterr()
     assert out == "There are 3 rabbits and they're all called Peter\n"
@@ -62,7 +62,7 @@ def test_autowired_worker_with_default_queue(client: MessageClient, capfd):
     from tests.rabbit_city.tasks import what_that_rabbit_do
 
     broker.submit(what_that_rabbit_do, "peter")
-    broker.run_worker("messages", time_limit=0)
+    broker.run_worker("messages", time_limit=0, raise_errors=True)
 
     out, err = capfd.readouterr()
     assert out == "peter digs holes.\n"

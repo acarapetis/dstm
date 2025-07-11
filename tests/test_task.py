@@ -20,5 +20,5 @@ def test_simple_task(queue: str, client: MessageClient):
     submit_task(queue, "simple_task", client, "steve", 3)
 
     outputs.clear()
-    run_worker(client, [queue], wiring, time_limit=0)
+    run_worker(client, [queue], wiring, time_limit=0, raise_errors=True)
     assert outputs == ["hi steve"] * 3

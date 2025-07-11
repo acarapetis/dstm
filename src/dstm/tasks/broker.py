@@ -60,6 +60,7 @@ class TaskBroker:
         queues: Iterable[str] | str,
         time_limit: int | None = None,
         task_limit: int | None = None,
+        raise_errors: bool = False,
     ):
         if isinstance(queues, str):
             queues = [queues]
@@ -69,6 +70,7 @@ class TaskBroker:
             wiring=self.wiring,
             time_limit=time_limit,
             task_limit=task_limit,
+            raise_errors=raise_errors,
         )
 
     def create_queues(self, queues: Iterable[str] | str):
