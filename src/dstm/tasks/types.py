@@ -1,4 +1,5 @@
-from dataclasses import dataclass
+import uuid
+from dataclasses import dataclass, field
 from typing import Any, Generic, ParamSpec, Protocol
 
 P = ParamSpec("P")
@@ -17,3 +18,18 @@ class TaskFunc(Generic[P], Protocol):
 class TaskIdentity:
     name: str
     queue: str
+
+
+def uuidstr():
+    return str(uuid.uuid4())
+
+
+@dataclass
+class TaskInstance:
+    task_name: str
+    args: list | tuple
+    kwargs: dict
+    task_instance_id: str = field(default_factory=uuidstr)
+
+    def __str__(self):
+        return f"TaskInstance({self.task_name}#{self.task_instance_id})"

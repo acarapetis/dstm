@@ -40,7 +40,7 @@ def submit(
     backend = TaskBroker(queue_prefix=queue_prefix, client=client_from_uri(broker_uri))
     args = json.loads(args_json)
     kwargs = json.loads(kwargs_json)
-    backend.submit(backend.wiring.name_to_func(task), *args, **kwargs)
+    backend.submit(backend.wiring.get_task_by_name(task), *args, **kwargs)
 
 
 if __name__ == "__main__":

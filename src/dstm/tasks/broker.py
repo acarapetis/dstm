@@ -1,11 +1,12 @@
 import logging
+from dataclasses import asdict
 from typing import Iterable, ParamSpec
 
 from dstm.client.base import MessageClient
 from dstm.message import Message
-from dstm.tasks.types import TaskFunc
+from dstm.tasks.types import TaskFunc, TaskInstance
 from dstm.tasks.wiring import AutoWiring, TaskWiring
-from dstm.tasks.worker import TaskInstance, run_worker
+from dstm.tasks.worker import run_worker
 
 logger = logging.getLogger(__name__)
 
@@ -19,15 +20,9 @@ def submit_task(
     **kwargs,
 ) -> None:
     with client.connect() as conn:
-        logger.info(f"Submitting {task_name=} to {queue=}")
-        msg: Message[TaskInstance] = Message(
-            queue,
-            {
-                "task_name": task_name,
-                "args": args,
-                "kwargs": kwargs,
-            },
-        )
+        instance = TaskInstance(task_name, args=args, kwargs=kwargs)
+        msg = Message(queue, asdict(instance))
+        logger.info(f"Submitting {instance} to {queue}")
         conn.publish(msg)
 
 
@@ -88,6 +83,6 @@ class TaskBroker:
                 conn.destroy_queue(self.queue_prefix + g)
 
     def submit(self, task: TaskFunc[P], /, *args: P.args, **kwargs: P.kwargs):
-        task_id = self.wiring.func_to_identity(task)
+        task_id = self.wiring.get_task_identity(task)
         queue = self.queue_prefix + task_id.queue
         submit_task(queue, task_id.name, self.client, *args, **kwargs)

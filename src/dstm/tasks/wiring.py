@@ -9,15 +9,15 @@ T = TypeVar("T", bound=TaskFunc)
 
 
 class TaskWiring(Generic[T], Protocol):
-    def func_to_identity(self, func: T) -> TaskIdentity: ...
-    def name_to_func(self, task_name: str) -> T: ...
+    def get_task_identity(self, func: T) -> TaskIdentity: ...
+    def get_task_by_name(self, task_name: str) -> T: ...
 
 
 @dataclass
 class AutoWiring(TaskWiring[T]):
     default_queue: str | None = None
 
-    def func_to_identity(self, func: T) -> TaskIdentity:
+    def get_task_identity(self, func: T) -> TaskIdentity:
         queue = getattr(func, "queue", self.default_queue)
         if queue is None:
             raise WiringError(
@@ -26,7 +26,7 @@ class AutoWiring(TaskWiring[T]):
             )
         return TaskIdentity(f"{func.__module__}:{func.__name__}", queue)
 
-    def name_to_func(self, task_name: str) -> T:
+    def get_task_by_name(self, task_name: str) -> T:
         module, name = task_name.split(":")
         return getattr(import_module(module), name)
 
@@ -47,13 +47,13 @@ class HardWiring(TaskWiring[T]):
             for name, func in submap.items()
         }
 
-    def name_to_func(self, task_name: str) -> T:
+    def get_task_by_name(self, task_name: str) -> T:
         try:
             return self.funcs[task_name]
         except KeyError:
             raise WiringError(f"No task with name {task_name} found")
 
-    def func_to_identity(self, func: T) -> TaskIdentity:
+    def get_task_identity(self, func: T) -> TaskIdentity:
         try:
             return self.ids[func]
         except KeyError:
